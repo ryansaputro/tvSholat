@@ -27,7 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
 
 @Composable
-fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String) {
+fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: String) {
 
     val config by repo.configFlow.collectAsState()
     
@@ -157,7 +157,11 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(config.name, color = Color.LightGray, fontSize = 16.sp)
-                    Text(config.address, color = Color.Gray, fontSize = 12.sp)
+                    Text(
+                        text = "${config.address}  (v$appVersion)", 
+                        color = Color.Gray, 
+                        fontSize = 12.sp
+                    )
                     Text(
                         text = "Panel Admin: http://$deviceIp:9090",
                         color = Color.DarkGray,

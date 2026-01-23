@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
         }.start()
 
         setContent {
-            HomeScreen(repo, deviceIp)
+            HomeScreen(repo, deviceIp, BuildConfig.VERSION_NAME)
         }
     }
 
