@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -11,191 +13,161 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.masjid.tvsholat.data.MasjidConfig
+import com.masjid.tvsholat.data.MasjidConfigRepository
 import com.masjid.tvsholat.domain.model.PrayerTime
 import com.masjid.tvsholat.domain.service.PrayerCalculator
 import com.masjid.tvsholat.ui.components.ClockHeader
+import com.masjid.tvsholat.ui.components.IqomahScreen
 import com.masjid.tvsholat.ui.components.ScreenBackground
 import kotlinx.coroutines.delay
 import java.util.*
 
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+
 @Composable
-fun HomeScreen() {
+fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: String) {
 
-    val latitude = -6.3210
-    val longitude = 107.0220
+    val config by repo.configFlow.collectAsState()
+    
+    // Function to get "now" with manual offset applied
+    fun getAdjustedNow(offsetMinutes: Int): Date {
+        val actualNow = Date()
+        return if (offsetMinutes == 0) actualNow 
+        else Date(actualNow.time + (offsetMinutes * 60 * 1000L))
+    }
 
-    var now by remember { mutableStateOf(Date()) }
+    var now by remember { mutableStateOf(getAdjustedNow(config.timeOffsetMinutes)) }
 
-    // =====================
-    // IQOMAH STATE
-    // =====================
-    var isIqomah by remember { mutableStateOf(false) }
-    var iqomahSeconds by remember { mutableStateOf(5 * 60) }
-    var currentPrayer by remember { mutableStateOf<PrayerTime?>(null) }
-
-    LaunchedEffect(Unit) {
+    LaunchedEffect(config.timeOffsetMinutes) {
         while (true) {
             delay(1000)
-            now = Date()
+            now = getAdjustedNow(config.timeOffsetMinutes)
         }
     }
 
-    val prayers = remember {
-        PrayerCalculator.todayPrayerTimes(latitude, longitude)
+    // Recalculate todayKey only when the actual date changes (not every second)
+    val todayKey = remember(now.year, now.month, now.date, config.dateOffsetDays) {
+        val cal = Calendar.getInstance()
+        cal.time = now
+        cal.add(Calendar.DAY_OF_YEAR, config.dateOffsetDays)
+        val day = cal.get(Calendar.DAY_OF_MONTH)
+        val month = cal.get(Calendar.MONTH)
+        val year = cal.get(Calendar.YEAR)
+        "$day-$month-$year"
     }
 
-    val nextPrayer: PrayerTime? = run {
-        prayers.firstOrNull { it.date.after(now) } ?: prayers.firstOrNull()
+    val prayers = remember(config.latitude, config.longitude, todayKey) {
+        val cal = Calendar.getInstance()
+        // Use a clean date for calculation to avoid millisecond sliding in tests
+        cal.time = now
+        cal.add(Calendar.DAY_OF_YEAR, config.dateOffsetDays)
+        
+        PrayerCalculator.calculateForDate(
+            config.latitude,
+            config.longitude,
+            cal.time
+        )
     }
 
-    // =====================
-    // TRIGGER IQOMAH
-    // =====================
-    LaunchedEffect(now) {
-        if (!isIqomah) {
-            prayers.forEach { prayer ->
-                if (now.after(prayer.date) &&
-                    now.time - prayer.date.time < 1000
-                ) {
-                    isIqomah = true
-                    iqomahSeconds = 5 * 60
-                    currentPrayer = prayer
-                }
-            }
-        }
+    val nextPrayer = prayers.firstOrNull { it.date.after(now) }
+    
+    // Logic Iqomah: Cek apakah lagi dalam masa tunggu sholat
+    val currentPrayerInIqomah = prayers.firstOrNull { prayer ->
+        val prayerStart = prayer.date.time
+        val iqomahEnd = prayerStart + (config.iqomahMinutes * 60 * 1000)
+        now.time in prayerStart until iqomahEnd && 
+        prayer.name != "Imsak" && prayer.name != "Syuruq"
     }
 
-    // =====================
-    // COUNTDOWN IQOMAH
-    // =====================
-    LaunchedEffect(isIqomah) {
-        if (isIqomah) {
-            while (iqomahSeconds > 0) {
-                delay(1000)
-                iqomahSeconds--
-            }
-            isIqomah = false
-            currentPrayer = null
-        }
-    }
+    ScreenBackground(backgroundUrl = config.backgroundUrl) {
+        if (currentPrayerInIqomah != null) {
+            val prayerStart = currentPrayerInIqomah.date.time
+            val iqomahEnd = prayerStart + (config.iqomahMinutes * 60 * 1000)
+            val remainingMillis = iqomahEnd - now.time
 
-    ScreenBackground {
-
-        // =====================
-        // IQOMAH MODE
-        // =====================
-        if (isIqomah && currentPrayer != null) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "IQOMAH",
-                    fontSize = 64.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFFFD54F)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = currentPrayer!!.name,
-                    fontSize = 36.sp,
-                    color = Color.White
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                val minutes = iqomahSeconds / 60
-                val seconds = iqomahSeconds % 60
-
-                Text(
-                    text = String.format("%02d:%02d", minutes, seconds),
-                    fontSize = 88.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
-            return@ScreenBackground
-        }
-
-        // =====================
-        // NORMAL SCREEN
-        // =====================
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 32.dp, vertical = 24.dp), // 🔥 DIPERKECIL
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-
-            // ===== HEADER =====
-            Column {
-                ClockHeader(now)
-
-                nextPrayer?.let {
-                    Text(
-                        text = "Menuju ${it.name}",
-                        fontSize = 22.sp,
-                        color = Color(0xFFFFD54F),
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            // ===== LIST JADWAL =====
+            IqomahScreen(
+                prayerName = currentPrayerInIqomah.name,
+                timeLeftMillis = remainingMillis
+            )
+        } else {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f) // 🔥 KUNCI BIAR ISYA TIDAK KE POTONG
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                prayers.forEach {
-                    val isNext = it == nextPrayer
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                if (isNext) Color(0xFF1E2A25) else Color.Transparent
-                            )
-                            .padding(vertical = 6.dp, horizontal = 12.dp), // 🔥 LEBIH RAPAT
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
+                Column {
+                    ClockHeader(now)
+                    nextPrayer?.let {
+                        val diff = it.date.time - now.time
+                        val h = (diff / (1000 * 60 * 60)) % 24
+                        val m = (diff / (1000 * 60)) % 60
+                        val s = (diff / 1000) % 60
+                        val countdown = String.format("%02d:%02d:%02d", h, m, s)
+                        
                         Text(
-                            text = it.name,
-                            fontSize = 22.sp,
-                            color = if (isNext) Color(0xFFFFD54F) else Color.White,
-                            fontWeight = if (isNext) FontWeight.Bold else FontWeight.Normal
-                        )
-
-                        Text(
-                            text = it.time,
-                            fontSize = 24.sp,
-                            color = if (isNext) Color(0xFFFFD54F) else Color.White,
+                            text = "Menuju ${it.name}   - $countdown",
+                            color = Color(0xFFFFD54F),
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
-            }
 
-            // ===== FOOTER =====
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Masjid Al-Kautsar",
-                    fontSize = 18.sp,
-                    color = Color.LightGray,
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    text = "Perum Arcadia Residence",
-                    fontSize = 13.sp,
-                    color = Color.Gray,
-                    textAlign = TextAlign.Center
-                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    prayers.forEach { prayer ->
+                        val isNext = prayer == nextPrayer
+                        val bgColor = if (isNext) Color.White.copy(alpha = 0.15f) else Color.Transparent
+                        val textColor = if (isNext) Color(0xFFFFD54F) else Color.White
+                        val fontWeight = if (isNext) FontWeight.ExtraBold else FontWeight.Normal
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(bgColor)
+                                .padding(horizontal = 12.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = prayer.name, 
+                                fontSize = if (isNext) 24.sp else 18.sp, 
+                                color = textColor,
+                                fontWeight = fontWeight
+                            )
+                            Text(
+                                text = prayer.time, 
+                                fontSize = if (isNext) 28.sp else 22.sp, 
+                                color = textColor,
+                                fontWeight = fontWeight
+                            )
+                        }
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(config.name, color = Color.LightGray, fontSize = 16.sp)
+                    Text(
+                        text = "${config.address}  (v$appVersion)", 
+                        color = Color.Gray, 
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        text = "Panel Admin: http://$deviceIp:9090",
+                        color = Color.DarkGray,
+                        fontSize = 11.sp
+                    )
+                }
             }
         }
     }
