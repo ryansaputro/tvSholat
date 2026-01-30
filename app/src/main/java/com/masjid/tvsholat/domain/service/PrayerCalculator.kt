@@ -35,13 +35,13 @@ object PrayerCalculator {
         val isha = prayerTimes.isha.withIhtiyati()
 
         return listOf(
-            PrayerTime("Imsak", imsak.format(), imsak),
-            PrayerTime("Subuh", fajr.format(), fajr),
-            PrayerTime("Syuruq", syuruq.format(), syuruq),
-            PrayerTime("Dzuhur", dhuhr.format(), dhuhr),
-            PrayerTime("Ashar", asr.format(), asr),
-            PrayerTime("Maghrib", maghrib.format(), maghrib),
-            PrayerTime("Isya", isha.format(), isha)
+            PrayerTime("IMSAK", imsak.format(), imsak),
+            PrayerTime("SUBUH", fajr.format(), fajr),
+            PrayerTime("TERBIT", syuruq.format(), syuruq),
+            PrayerTime("DZUHUR", dhuhr.format(), dhuhr),
+            PrayerTime("ASHAR", asr.format(), asr),
+            PrayerTime("MAGHRIB", maghrib.format(), maghrib),
+            PrayerTime("ISYA", isha.format(), isha)
         )
     }
 }

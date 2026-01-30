@@ -33,17 +33,20 @@ fun ClockHeader(now: Date) {
     ) {
         Text(
             text = SimpleDateFormat("HH:mm:ss").format(now),
-            fontSize = 64.sp,
+            fontSize = 56.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = Color.White,
+            softWrap = false,
+            maxLines = 1
         )
 
         Column(horizontalAlignment = Alignment.End) {
             Text(
                 text = SimpleDateFormat("EEEE, dd MMM yyyy", Locale.forLanguageTag("id")).format(now),
-                fontSize = 22.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = Color.White,
+                softWrap = false
             )
             Text(
                 text = hijriFormatted,

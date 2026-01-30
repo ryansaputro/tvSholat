@@ -108,7 +108,7 @@ fun HadithScreen(config: MasjidConfig, now: Date) {
             
             Spacer(modifier = Modifier.height(40.dp))
             
-            Text(config.name, color = Color.Gray, fontSize = 16.sp)
+            Text(config.name.uppercase(), color = Color.Gray, fontSize = 16.sp)
         }
         
         // Anti Burn-in

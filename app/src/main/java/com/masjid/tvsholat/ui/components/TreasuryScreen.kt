@@ -61,17 +61,17 @@ fun TreasuryScreen(config: MasjidConfig) {
                 modifier = Modifier
                     .clip(RoundedCornerShape(24.dp))
                     .background(Color.White.copy(alpha = 0.1f))
-                    .padding(horizontal = 48.dp, vertical = 32.dp),
+                    .padding(horizontal = 48.dp, vertical = 24.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = config.treasuryDescription,
+                        text = config.treasuryDescription.uppercase(),
                         color = Color.LightGray,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Rp ${config.treasuryBalance}",
                         color = Color.White,
@@ -81,14 +81,55 @@ fun TreasuryScreen(config: MasjidConfig) {
                 }
             }
             
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(30.dp))
+            
+            // Rekening & QRIS Section
+            if (config.treasuryAccountInfo.isNotEmpty() || config.treasuryQrisData.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(0.9f),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (config.treasuryQrisData.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .size(140.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White)
+                                .padding(8.dp)
+                        ) {
+                            QrPanel(content = config.treasuryQrisData, size = 124)
+                        }
+                        Spacer(modifier = Modifier.width(24.dp))
+                    }
+                    
+                    if (config.treasuryAccountInfo.isNotEmpty()) {
+                        Column {
+                            Text(
+                                text = "INFAQ & SHADAQAH VIA TRANSFER:",
+                                color = Color(0xFFFFD54F),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = config.treasuryAccountInfo,
+                                color = Color.White,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(30.dp))
+            }
             
             Text(
                 text = "Syukran jazakumullah khairan katsiran atas infaq/shadaqah Bapak/Ibu sekalian.\nSemoga menjadi amal jariyah yang berlipat ganda.",
                 color = Color(0xFFA5D6A7),
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 textAlign = TextAlign.Center,
-                lineHeight = 24.sp,
+                lineHeight = 22.sp,
                 modifier = Modifier.fillMaxWidth(0.85f)
             )
         }

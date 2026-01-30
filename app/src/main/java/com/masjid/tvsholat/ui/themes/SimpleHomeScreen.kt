@@ -74,7 +74,7 @@ fun SimpleHomeScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = prayer.name, 
+                            text = prayer.name.uppercase(), 
                             fontSize = if (isNext) 24.sp else 18.sp, 
                             color = textColor,
                             fontWeight = fontWeight
@@ -95,11 +95,19 @@ fun SimpleHomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("${config.name} (v$appVersion)", color = Color.LightGray, fontSize = 14.sp)
+                    Text(
+                        text = "${config.name.uppercase()} (v$appVersion)", 
+                        color = Color.LightGray, 
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        softWrap = false
+                    )
                     Text(
                         text = "${config.address} | Admin: http://$deviceIp:9090", 
                         color = Color.Gray, 
-                        fontSize = 11.sp
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        softWrap = false
                     )
                     if (config.lastUpdated.isNotEmpty()) {
                         Text(

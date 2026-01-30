@@ -47,10 +47,10 @@ fun DashboardHomeScreen(
             // Sidebar - Prayer Times
             Column(
                 modifier = Modifier
-                    .width(280.dp)
+                    .fillMaxWidth(0.25f)
                     .fillMaxHeight()
                     .background(Color.Black.copy(alpha = 0.5f))
-                    .padding(16.dp),
+                    .padding(vertical = 8.dp, horizontal = 12.dp),
                 verticalArrangement = Arrangement.Center
             ) {
                 prayers.forEach { prayer ->
@@ -58,21 +58,23 @@ fun DashboardHomeScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 1.dp)
+                            .padding(vertical = 2.dp) // Kurangi padding luar
                             .clip(RoundedCornerShape(8.dp))
                             .background(if (isNext) Color.White.copy(alpha = 0.1f) else Color.Transparent)
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .padding(horizontal = 10.dp, vertical = 6.dp) // Kurangi padding dalam
                     ) {
                         Text(
-                            text = prayer.name,
+                            text = prayer.name.uppercase(),
                             color = if (isNext) Color(0xFFFFD54F) else Color.LightGray,
-                            fontSize = 14.sp,
-                            fontWeight = if (isNext) FontWeight.ExtraBold else FontWeight.Normal
+                            fontSize = 16.sp, // Ukuran font diperkecil
+                            fontWeight = if (isNext) FontWeight.ExtraBold else FontWeight.Normal,
+                            maxLines = 1,
+                            softWrap = false
                         )
                         Text(
                             text = prayer.time,
                             color = if (isNext) Color.White else Color.Gray,
-                            fontSize = 20.sp,
+                            fontSize = 24.sp, // Ukuran font diperkecil
                             fontWeight = if (isNext) FontWeight.Black else FontWeight.Bold
                         )
                     }
@@ -90,15 +92,20 @@ fun DashboardHomeScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = config.name,
+                        text = config.name.uppercase(),
                         color = Color.White,
-                        fontSize = 42.sp,
-                        fontWeight = FontWeight.Black
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                     Text(
-                        text = config.address,
+                        text = config.address.uppercase(),
                         color = Color.LightGray,
-                        fontSize = 18.sp
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
 
@@ -106,7 +113,7 @@ fun DashboardHomeScreen(
                     Text(
                         text = timeFormat.format(now),
                         color = Color.White,
-                        fontSize = 100.sp,
+                        fontSize = 80.sp,
                         fontWeight = FontWeight.Black
                     )
                     Text(
@@ -136,7 +143,7 @@ fun DashboardHomeScreen(
                             .padding(horizontal = 32.dp, vertical = 16.dp)
                     ) {
                         Text(
-                            text = "Menuju ${it.name} : ${String.format("%02d:%02d:%02d", h, m, s)}",
+                            text = "MENUJU ${it.name.uppercase()} : ${String.format("%02d:%02d:%02d", h, m, s)}",
                             color = Color.White,
                             fontSize = 28.sp,
                             fontWeight = FontWeight.Bold

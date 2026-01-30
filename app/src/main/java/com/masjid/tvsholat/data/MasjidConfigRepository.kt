@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class MasjidConfigRepository(context: Context) {
 
     private val prefs =
-        context.getSharedPreferences("masjid_config", Context.MODE_PRIVATE)
+        context.applicationContext.getSharedPreferences("masjid_config", Context.MODE_PRIVATE)
 
     private val _configFlow = MutableStateFlow(load())
     val configFlow = _configFlow.asStateFlow()
@@ -38,7 +38,11 @@ class MasjidConfigRepository(context: Context) {
             .putString("treasury_balance", config.treasuryBalance)
             .putString("treasury_desc", config.treasuryDescription)
             .putInt("treasury_interval", config.treasuryDisplayInterval)
+            .putInt("treasury_duration", config.treasuryDisplayDuration)
+            .putString("treasury_account", config.treasuryAccountInfo)
+            .putString("treasury_qris", config.treasuryQrisData)
             .putInt("hadith_interval", config.hadithDisplayInterval)
+            .putInt("hadith_duration", config.hadithDisplayDuration)
             .putString("last_updated", config.lastUpdated)
             .apply()
     }
@@ -58,7 +62,11 @@ class MasjidConfigRepository(context: Context) {
             treasuryBalance = prefs.getString("treasury_balance", "0") ?: "0",
             treasuryDescription = prefs.getString("treasury_desc", "Saldo Kas Masjid") ?: "Saldo Kas Masjid",
             treasuryDisplayInterval = prefs.getInt("treasury_interval", 0),
+            treasuryDisplayDuration = prefs.getInt("treasury_duration", 15),
+            treasuryAccountInfo = prefs.getString("treasury_account", "BSI 0044448884") ?: "BSI 0044448884",
+            treasuryQrisData = prefs.getString("treasury_qris", "") ?: "",
             hadithDisplayInterval = prefs.getInt("hadith_interval", 0),
+            hadithDisplayDuration = prefs.getInt("hadith_duration", 20),
             lastUpdated = prefs.getString("last_updated", "") ?: ""
         )
     }

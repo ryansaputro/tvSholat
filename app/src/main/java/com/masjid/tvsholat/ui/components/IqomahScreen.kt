@@ -51,7 +51,7 @@ fun IqomahScreen(prayerName: String, timeLeftMillis: Long) {
             Spacer(modifier = Modifier.height(8.dp))
             
             Text(
-                text = prayerName,
+                text = prayerName.uppercase(),
                 fontSize = 48.sp,
                 color = Color.White
             )
@@ -69,7 +69,7 @@ fun IqomahScreen(prayerName: String, timeLeftMillis: Long) {
             
             if (minutes == 0L && seconds in 0L..10L) {
                 Text(
-                    text = "Luruskan dan Rapatkan Shaf",
+                    text = "LURUSKAN DAN RAPATKAN SHAF",
                     fontSize = 28.sp,
                     color = Color.LightGray
                 )

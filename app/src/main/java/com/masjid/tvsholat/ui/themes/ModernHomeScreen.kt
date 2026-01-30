@@ -72,7 +72,7 @@ fun ModernHomeScreen(
                     Text(
                         text = timeFormat.format(now),
                         color = Color.White,
-                        fontSize = 80.sp,
+                        fontSize = 72.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 2.sp
                     )
@@ -104,7 +104,7 @@ fun ModernHomeScreen(
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                text = "${it.name}  -  ${String.format("%02d:%02d:%02d", h, m, s)}",
+                                text = "${it.name.uppercase()}  -  ${String.format("%02d:%02d:%02d", h, m, s)}",
                                 color = Color.White,
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.ExtraBold
@@ -119,8 +119,21 @@ fun ModernHomeScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(config.name, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            Text(config.address, color = Color.LightGray, fontSize = 12.sp)
+                            Text(
+                                text = config.name.uppercase(), 
+                                color = Color.White, 
+                                fontSize = 18.sp, 
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                            Text(
+                                text = config.address, 
+                                color = Color.LightGray, 
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                softWrap = false
+                            )
                             if (config.lastUpdated.isNotEmpty()) {
                                 Text(
                                     text = "Admin Updated: ${config.lastUpdated}",
@@ -168,16 +181,20 @@ fun ModernHomeScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = prayer.name,
+                                text = prayer.name.uppercase(),
                                 color = glowColor,
-                                fontSize = if (isNext) 20.sp else 16.sp,
-                                fontWeight = if (isNext) FontWeight.Black else FontWeight.Medium
+                                fontSize = if (isNext) 18.sp else 15.sp, // Slightly smaller
+                                fontWeight = if (isNext) FontWeight.Black else FontWeight.Medium,
+                                maxLines = 1,
+                                softWrap = false
                             )
                             Text(
                                 text = prayer.time,
                                 color = glowColor,
-                                fontSize = if (isNext) 24.sp else 18.sp,
-                                fontWeight = if (isNext) FontWeight.Black else FontWeight.Bold
+                                fontSize = if (isNext) 22.sp else 17.sp, // Slightly smaller
+                                fontWeight = if (isNext) FontWeight.Black else FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }

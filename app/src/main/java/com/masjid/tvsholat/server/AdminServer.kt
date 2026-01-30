@@ -10,7 +10,7 @@ import java.util.Locale
 
 class AdminServer private constructor(
     private val repo: MasjidConfigRepository
-) : NanoHTTPD("0.0.0.0", 9090) {
+) : NanoHTTPD(null, 9090) {
 
     companion object {
         private var instance: AdminServer? = null
@@ -80,53 +80,187 @@ class AdminServer private constructor(
         
         val html = """
             <!DOCTYPE html>
-            <html>
+            <html lang="id">
             <head>
-                <title>Admin TvSholat</title>
-                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Admin TvSholat - ${config.name}</title>
+                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+                <style>
+                    :root {
+                        --primary: #1b5e20;
+                        --primary-light: #4c8c4a;
+                        --bg: #f5f7f9;
+                        --card: #ffffff;
+                        --text: #2c3e50;
+                        --muted: #7f8c8d;
+                    }
+                    * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
+                    body { 
+                        background: var(--bg); color: var(--text); margin: 0; padding: 20px;
+                        display: flex; justify-content: center;
+                    }
+                    .container { width: 100%; max-width: 600px; }
+                    .header { text-align: center; margin-bottom: 30px; }
+                    .header h1 { margin: 0; color: var(--primary); font-weight: 800; font-size: 24px; }
+                    .header p { color: var(--muted); margin: 5px 0; font-size: 14px; }
+                    
+                    .card { 
+                        background: var(--card); border-radius: 12px; padding: 20px;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px;
+                        border: 1px solid rgba(0,0,0,0.05);
+                    }
+                    .card h3 { 
+                        margin: 0 0 15px 0; font-size: 16px; color: var(--primary);
+                        display: flex; align-items: center;
+                    }
+                    .card h3::before {
+                        content: ''; display: inline-block; width: 4px; height: 16px;
+                        background: var(--primary); margin-right: 10px; border-radius: 2px;
+                    }
+
+                    .form-group { margin-bottom: 15px; }
+                    label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--text); }
+                    input, select, textarea {
+                        width: 100%; padding: 10px 12px; border: 1px solid #ddd;
+                        border-radius: 8px; font-size: 14px; outline: none;
+                        transition: border-color 0.2s;
+                    }
+                    input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+                    
+                    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+                    
+                    .preview-box {
+                        width: 100%; height: 120px; border-radius: 8px; overflow: hidden;
+                        margin-top: 10px; border: 1px dashed #ccc;
+                    }
+                    .preview-box img { width: 100%; height: 100%; object-fit: cover; }
+                    
+                    button {
+                        width: 100%; padding: 14px; background: var(--primary);
+                        color: white; border: none; border-radius: 8px; font-weight: 600;
+                        font-size: 16px; cursor: pointer; transition: background 0.2s;
+                        margin-top: 10px; box-shadow: 0 4px 12px rgba(27, 94, 32, 0.2);
+                    }
+                    button:hover { background: var(--primary-light); }
+                    button:active { transform: translateY(1px); }
+                </style>
                 $successScript
             </head>
             <body>
-            <h2>Admin Masjid</h2>
-            ${if (config.lastUpdated.isNotEmpty()) "<p style='color: gray; font-size: 0.8em'>Terakhir diperbarui: ${config.lastUpdated}</p>" else ""}
-            <form action="/save" method="POST">
-                Nama Masjid:<br><input name="name" value="${config.name}"><br><br>
-                Alamat:<br><input name="address" value="${config.address}"><br><br>
-                Tema Tampilan:<br>
-                <select name="theme_name" style="width: 100%; padding: 8px; border-radius: 4px">
-                    <option value="simple" ${if (config.themeName == "simple") "selected" else ""}>Simple (Default)</option>
-                    <option value="modern" ${if (config.themeName == "modern") "selected" else ""}>Modern Sleek</option>
-                    <option value="classic" ${if (config.themeName == "classic") "selected" else ""}>Classic Green</option>
-                    <option value="dashboard" ${if (config.themeName == "dashboard") "selected" else ""}>Dashboard Sidebar</option>
-                </select><br><br>
-                Latitude:<br><input name="lat" value="${config.latitude}"><br><br>
-                Longitude:<br><input name="lng" value="${config.longitude}"><br><br>
-                Iqomah (menit):<br><input name="iqomah" value="${config.iqomahMinutes}"><br><br>
-                Koreksi Waktu (menit):<br><input name="time_offset" type="number" value="${config.timeOffsetMinutes}"><br><br>
-                Koreksi Tanggal (hari):<br><input name="date_offset" type="number" value="${config.dateOffsetDays}"><br><br>
-                Teks Berjalan (Anti Burn-in):<br>
-                <textarea name="running_text" style="width: 100%; height: 80px; padding: 8px; border-radius: 4px">${config.runningText}</textarea><br><br>
-                Background URL:<br><input name="bg_url" id="bg_url" value="${config.backgroundUrl}" style="width: 100%" oninput="document.getElementById('preview').src=this.value"><br><br>
-                <div style="width: 100%; height: 150px; border: 1px solid #ccc; overflow: hidden">
-                    <img id="preview" src="${config.backgroundUrl}" style="width: 100%; height: 100%; object-fit: cover" onerror="this.src='https://via.placeholder.com/300x150?text=Preview+Error'">
-                </div><br>
+            <div class="container">
+                <div class="header">
+                    <h1>TV Sholat Admin</h1>
+                    <p>${if (config.lastUpdated.isNotEmpty()) "Update terakhir: ${config.lastUpdated}" else "Panel Konfigurasi Masjid"}</p>
+                </div>
                 
-                <div style="background: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 20px">
-                    <h3 style="margin-top: 0">Laporan Kas DKM</h3>
-                    Saldo Kas:<br><input name="treasury_balance" value="${config.treasuryBalance}" style="width: 100%"><br><br>
-                    Keterangan:<br><input name="treasury_desc" value="${config.treasuryDescription}" style="width: 100%"><br><br>
-                    Interval Tampil (menit, 0=off):<br><input name="treasury_interval" type="number" value="${config.treasuryDisplayInterval}" style="width: 100%"><br>
-                    <small style="color: grey">*Tampil otomatis setiap interval menit selama 15 detik</small>
-                </div>
+                <form action="/save" method="POST">
+                    <div class="card">
+                        <h3>Informasi Masjid</h3>
+                        <div class="form-group">
+                            <label>Nama Masjid</label>
+                            <input name="name" value="${config.name}" placeholder="Contoh: Masjid Al-Kautsar">
+                        </div>
+                        <div class="form-group">
+                            <label>Alamat</label>
+                            <input name="address" value="${config.address}" placeholder="Alamat lengkap...">
+                        </div>
+                        <div class="form-group">
+                            <label>Tema Tampilan</label>
+                            <select name="theme_name">
+                                <option value="simple" ${if (config.themeName == "simple") "selected" else ""}>🌿 Simple Clean (Default)</option>
+                                <option value="modern" ${if (config.themeName == "modern") "selected" else ""}>💎 Modern Sleek</option>
+                                <option value="classic" ${if (config.themeName == "classic") "selected" else ""}>🕌 Classic Green</option>
+                                <option value="dashboard" ${if (config.themeName == "dashboard") "selected" else ""}>📊 Dashboard Sidebar</option>
+                            </select>
+                        </div>
+                    </div>
 
-                <div style="background: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 20px">
-                    <h3 style="margin-top: 0">Syiar & Edukasi</h3>
-                    Interval Tampil Hadits (menit, 0=off):<br><input name="hadith_interval" type="number" value="${config.hadithDisplayInterval}" style="width: 100%"><br>
-                    <small style="color: grey">*Tampil otomatis setiap interval menit selama 20 detik</small>
-                </div>
+                    <div class="card">
+                        <h3>Lokasi & Waktu</h3>
+                        <div class="grid">
+                            <div class="form-group">
+                                <label>Latitude</label>
+                                <input name="lat" value="${config.latitude}">
+                            </div>
+                            <div class="form-group">
+                                <label>Longitude</label>
+                                <input name="lng" value="${config.longitude}">
+                            </div>
+                            <div class="form-group">
+                                <label>Koreksi Waktu (Min)</label>
+                                <input name="time_offset" type="number" value="${config.timeOffsetMinutes}">
+                            </div>
+                            <div class="form-group">
+                                <label>Koreksi Tanggal (Hari)</label>
+                                <input name="date_offset" type="number" value="${config.dateOffsetDays}">
+                            </div>
+                        </div>
+                    </div>
 
-                <button type="submit" style="padding: 10px; width: 100%; background: #4CAF50; color: white; border: none; border-radius: 4px">Simpan</button>
-            </form>
+                    <div class="card">
+                        <h3>Iqomah & Konten</h3>
+                        <div class="form-group">
+                            <label>Jeda Iqomah (Menit)</label>
+                            <input name="iqomah" type="number" value="${config.iqomahMinutes}">
+                        </div>
+                        <div class="form-group">
+                            <label>Teks Berjalan</label>
+                            <textarea name="running_text" rows="3">${config.runningText}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>URL Gambar Background</label>
+                            <input name="bg_url" oninput="document.getElementById('preview').src=this.value" value="${config.backgroundUrl}">
+                            <div class="preview-box">
+                                <img id="preview" src="${config.backgroundUrl}" onerror="this.src='https://via.placeholder.com/400x200?text=Preview+Error'">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Laporan Kas DKM</h3>
+                        <div class="form-group">
+                            <label>Saldo Kas saat ini</label>
+                            <input name="treasury_balance" value="${config.treasuryBalance}" placeholder="Contoh: Rp 1.500.000">
+                        </div>
+                        <div class="form-group">
+                            <label>No. Rekening / Info Bank</label>
+                            <input name="treasury_account" value="${config.treasuryAccountInfo}" placeholder="Contoh: Bank BSI - 7123456789 (Masjid Al-Kautsar)">
+                        </div>
+                        <div class="form-group">
+                            <label>Link / Data QRIS</label>
+                            <input name="treasury_qris" value="${config.treasuryQrisData}" placeholder="Masukkan link atau data QRIS untuk generate QR">
+                        </div>
+                        <div class="grid">
+                            <div class="form-group">
+                                <label>Interval (Menit)</label>
+                                <input name="treasury_interval" type="number" value="${config.treasuryDisplayInterval}">
+                            </div>
+                            <div class="form-group">
+                                <label>Durasi (Detik)</label>
+                                <input name="treasury_duration" type="number" value="${config.treasuryDisplayDuration}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Syiar & Edukasi (Hadits)</h3>
+                        <div class="grid">
+                            <div class="form-group">
+                                <label>Interval (Menit)</label>
+                                <input name="hadith_interval" type="number" value="${config.hadithDisplayInterval}">
+                            </div>
+                            <div class="form-group">
+                                <label>Durasi (Detik)</label>
+                                <input name="hadith_duration" type="number" value="${config.hadithDisplayDuration}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit">Simpan Konfigurasi</button>
+                    <div style="height: 40px;"></div>
+                </form>
+            </div>
             </body>
             </html>
         """.trimIndent()
@@ -158,7 +292,11 @@ class AdminServer private constructor(
                 treasuryBalance = p["treasury_balance"]?.first()?.trim() ?: "0",
                 treasuryDescription = p["treasury_desc"]?.first()?.trim() ?: "Saldo Kas Masjid",
                 treasuryDisplayInterval = p["treasury_interval"]?.first()?.toIntOrNull() ?: 0,
+                treasuryDisplayDuration = p["treasury_duration"]?.first()?.toIntOrNull() ?: 15,
+                treasuryAccountInfo = p["treasury_account"]?.first()?.trim() ?: "",
+                treasuryQrisData = p["treasury_qris"]?.first()?.trim() ?: "",
                 hadithDisplayInterval = p["hadith_interval"]?.first()?.toIntOrNull() ?: 0,
+                hadithDisplayDuration = p["hadith_duration"]?.first()?.toIntOrNull() ?: 20,
                 lastUpdated = SimpleDateFormat("d MMM yyyy HH:mm", Locale.forLanguageTag("id")).format(Date())
             )
 

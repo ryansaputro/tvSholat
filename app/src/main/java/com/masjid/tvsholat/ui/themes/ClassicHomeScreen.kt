@@ -63,21 +63,21 @@ fun ClassicHomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1.5f)) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = config.name, 
+                        text = config.name.uppercase(), 
                         color = Color.White, 
-                        fontSize = 24.sp, 
+                        fontSize = 20.sp, 
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        softWrap = false
                     )
                     Text(
-                        text = config.address, 
+                        text = config.address.uppercase(), 
                         color = Color(0xFFA5D6A7), 
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        softWrap = false
                     )
                 }
                 
@@ -87,9 +87,16 @@ fun ClassicHomeScreen(
                     modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.End
                 ) {
-                    Text(timeFormat.format(now), color = Color.White, fontSize = 48.sp, fontWeight = FontWeight.Black)
-                    Text(dateFormat.format(now), color = Color.White, fontSize = 14.sp)
-                    Text(hijriFormatted, color = Color(0xFFFFD54F), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = timeFormat.format(now), 
+                        color = Color.White, 
+                        fontSize = 36.sp, 
+                        fontWeight = FontWeight.Black,
+                        softWrap = false,
+                        maxLines = 1
+                    )
+                    Text(dateFormat.format(now), color = Color.White, fontSize = 13.sp, softWrap = false)
+                    Text(hijriFormatted, color = Color(0xFFFFD54F), fontSize = 13.sp, fontWeight = FontWeight.Bold, softWrap = false)
                 }
             }
 
@@ -99,7 +106,7 @@ fun ClassicHomeScreen(
                     .weight(1f)
                     .fillMaxWidth()
                     .background(Color.White.copy(alpha = 0.9f))
-                    .padding(24.dp)
+                    .padding(horizontal = 12.dp, vertical = 24.dp)
             ) {
                 Row(modifier = Modifier.fillMaxSize()) {
                     prayers.forEachIndexed { index, prayer ->
@@ -109,7 +116,7 @@ fun ClassicHomeScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .padding(4.dp)
+                                .padding(2.dp)
                                 .background(
                                     if (isNext) Color(0xFFC8E6C9) else Color.Transparent,
                                     RoundedCornerShape(8.dp)
@@ -119,22 +126,26 @@ fun ClassicHomeScreen(
                                     if (isNext) Color(0xFF2E7D32) else Color.Transparent,
                                     RoundedCornerShape(8.dp)
                                 )
-                                .padding(12.dp),
+                                .padding(horizontal = 4.dp, vertical = 12.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = prayer.name,
+                                text = prayer.name.uppercase(),
                                 color = if (isNext) Color(0xFF1B5E20) else Color.DarkGray,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 16.sp, // Smaller
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = prayer.time,
                                 color = if (isNext) Color(0xFF1B5E20) else Color.Black,
-                                fontSize = 36.sp,
-                                fontWeight = FontWeight.Black
+                                fontSize = 24.sp, // Smaller
+                                fontWeight = FontWeight.Black,
+                                softWrap = false,
+                                maxLines = 1
                             )
                             
                             if (isNext) {

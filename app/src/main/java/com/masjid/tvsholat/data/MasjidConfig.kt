@@ -14,6 +14,10 @@ data class MasjidConfig(
     val treasuryBalance: String = "0",
     val treasuryDescription: String = "Saldo Kas Masjid",
     val treasuryDisplayInterval: Int = 0,
+    val treasuryDisplayDuration: Int = 15,
+    val treasuryAccountInfo: String = "BSI 0044448884",
+    val treasuryQrisData: String = "",
     val hadithDisplayInterval: Int = 0,
+    val hadithDisplayDuration: Int = 20,
     val lastUpdated: String = ""
 )

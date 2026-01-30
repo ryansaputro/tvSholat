@@ -111,13 +111,13 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
     // Syarat: Interval > 0, Menit habis dibagi interval, dan detik antara 0-15
     val isTreasuryPeriod = config.treasuryDisplayInterval > 0 && 
                           (now.time / 1000 / 60) % config.treasuryDisplayInterval == 0L && 
-                          (now.time / 1000 % 60) in 0L..15L
+                          (now.time / 1000 % 60) in 0L until config.treasuryDisplayDuration.toLong()
 
     // 🔥 LOGIC HADITH: Tampil setiap interval (misal tiap 3 menit)
     // Syarat: Interval > 0, Menit habis dibagi interval, dan detik antara 20-40 (biar ga tabrakan sama Kas)
     val isHadithPeriod = config.hadithDisplayInterval > 0 && 
                         (now.time / 1000 / 60) % config.hadithDisplayInterval == 0L && 
-                        (now.time / 1000 % 60) in 20L..40L
+                        (now.time / 1000 % 60) in 30L until (30L + config.hadithDisplayDuration)
 
     ScreenBackground(backgroundUrl = config.backgroundUrl) {
         if (currentPrayerInAdzan != null) {
