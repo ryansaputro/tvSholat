@@ -19,5 +19,7 @@ data class MasjidConfig(
     val treasuryQrisData: String = "",
     val hadithDisplayInterval: Int = 0,
     val hadithDisplayDuration: Int = 20,
+    val isActivated: Boolean = false,
+    val deviceId: String = "",
     val lastUpdated: String = ""
 )

@@ -43,6 +43,8 @@ class MasjidConfigRepository(context: Context) {
             .putString("treasury_qris", config.treasuryQrisData)
             .putInt("hadith_interval", config.hadithDisplayInterval)
             .putInt("hadith_duration", config.hadithDisplayDuration)
+            .putBoolean("is_activated", config.isActivated)
+            .putString("device_id", config.deviceId)
             .putString("last_updated", config.lastUpdated)
             .apply()
     }
@@ -67,6 +69,8 @@ class MasjidConfigRepository(context: Context) {
             treasuryQrisData = prefs.getString("treasury_qris", "") ?: "",
             hadithDisplayInterval = prefs.getInt("hadith_interval", 0),
             hadithDisplayDuration = prefs.getInt("hadith_duration", 20),
+            isActivated = prefs.getBoolean("is_activated", false),
+            deviceId = prefs.getString("device_id", "") ?: "",
             lastUpdated = prefs.getString("last_updated", "") ?: ""
         )
     }

@@ -12,12 +12,16 @@ import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.masjid.tvsholat.data.MasjidConfigRepository
+import com.masjid.tvsholat.domain.service.ActivationService
 import com.masjid.tvsholat.server.AdminServer
 import com.masjid.tvsholat.ui.HomeScreen
+import com.masjid.tvsholat.ui.components.ActivationScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var activationService: ActivationService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,7 +29,8 @@ class MainActivity : ComponentActivity() {
         // 🔥 BIAR LAYAR GAK MATI (STANDBY TERUS)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        val repo = MasjidConfigRepository(this)
+        val repo = MasjidConfigRepository(this.applicationContext)
+        activationService = ActivationService(this, repo)
 
         // 🔥 CEK IZIN JALAN DI ATAS APLIKASI LAIN (Penting buat Auto-Start & Admin Server)
         if (!Settings.canDrawOverlays(this)) {
@@ -39,9 +44,11 @@ class MainActivity : ComponentActivity() {
         }
 
         // 🔥 NYALAIN ADMIN SERVER (Repo pake application context biar awet)
-        startAdminServer(MasjidConfigRepository(this.applicationContext))
+        startAdminServer(repo)
 
         setContent {
+            val config by repo.configFlow.collectAsState()
+            
             // rememberSaveable biar nggak muncul lagi kalau cuma kedip/refresh (Activity Recreation)
             var showSplash by rememberSaveable { mutableStateOf(true) }
             
@@ -57,13 +64,25 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            
-            if (showSplash) {
-                com.masjid.tvsholat.ui.components.SplashScreen(onFinished = {
-                    showSplash = false
-                })
+
+            // --- GATEKEEPER AKTIVASI ---
+            if (!config.isActivated) {
+                // Jalankan polling aktivasi kalau belum aktif
+                DisposableEffect(Unit) {
+                    activationService.startPolling()
+                    onDispose { activationService.stopPolling() }
+                }
+                
+                ActivationScreen(deviceId = activationService.getDeviceId())
             } else {
-                HomeScreen(repo, deviceIp, BuildConfig.VERSION_NAME)
+                // --- MAIN APP FLOW ---
+                if (showSplash) {
+                    com.masjid.tvsholat.ui.components.SplashScreen(onFinished = {
+                        showSplash = false
+                    })
+                } else {
+                    HomeScreen(repo, deviceIp, BuildConfig.VERSION_NAME)
+                }
             }
         }
     }
@@ -89,8 +108,10 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        // Kita JANGAN STOP server di sini (Destroy Activity belum tentu Kill Process)
-        // Biarin server tetep idup selama process aplikasinya masih ada di background
+        // Stop polling activation if activity destroyed
+        if (::activationService.isInitialized) {
+            activationService.stopPolling()
+        }
         super.onDestroy()
     }
 }

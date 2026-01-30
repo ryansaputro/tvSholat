@@ -1,6 +1,7 @@
 package com.masjid.tvsholat.ui.components
 
 import androidx.compose.animation.core.*
+import com.masjid.tvsholat.ui.theme.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
@@ -50,7 +51,7 @@ fun SplashScreen(onFinished: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF00241B)), // Deep Green Mosque Theme
+            .background(DeepGreen), // Deep Green Mosque Theme
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -70,7 +71,7 @@ fun SplashScreen(onFinished: () -> Unit) {
             )
             Text(
                 text = "DEVELOPER",
-                color = Color(0xFFFFD54F), // Gold
+                color = Gold,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 8.sp
