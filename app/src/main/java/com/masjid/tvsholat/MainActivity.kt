@@ -29,7 +29,7 @@ class MainActivity : ComponentActivity() {
         // 🔥 BIAR LAYAR GAK MATI (STANDBY TERUS)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        val repo = MasjidConfigRepository(this.applicationContext)
+        val repo = MasjidConfigRepository.getInstance(this.applicationContext)
         activationService = ActivationService(this, repo)
 
         // 🔥 CEK IZIN JALAN DI ATAS APLIKASI LAIN (Penting buat Auto-Start & Admin Server)
@@ -104,7 +104,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         // Pastiin server tetep idup pas aplikasi balik ke depan (Foreground)
-        startAdminServer(MasjidConfigRepository(this.applicationContext))
+        startAdminServer(MasjidConfigRepository.getInstance(this.applicationContext))
     }
 
     override fun onDestroy() {

@@ -5,10 +5,23 @@ import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class MasjidConfigRepository(context: Context) {
-
+class MasjidConfigRepository private constructor(context: Context) {
+    // 🔥 PAKE APPLICATION CONTEXT BIAR GAK LEAK
+    private val appContext = context.applicationContext
+    
     private val prefs =
-        context.applicationContext.getSharedPreferences("masjid_config", Context.MODE_PRIVATE)
+        appContext.getSharedPreferences("masjid_config", Context.MODE_PRIVATE)
+
+    companion object {
+        @Volatile
+        private var instance: MasjidConfigRepository? = null
+
+        fun getInstance(context: Context): MasjidConfigRepository {
+            return instance ?: synchronized(this) {
+                instance ?: MasjidConfigRepository(context).also { instance = it }
+            }
+        }
+    }
 
     private val _configFlow = MutableStateFlow(load())
     val configFlow = _configFlow.asStateFlow()
@@ -24,6 +37,11 @@ class MasjidConfigRepository(context: Context) {
     }
 
     fun save(config: MasjidConfig) {
+        // 🔥 PROTECTION: Jangan biarkan isActivated pindah dari true ke false secara tidak sengaja
+        val current = load()
+        val finalIsActivated = config.isActivated || current.isActivated
+        val finalDeviceId = config.deviceId.ifEmpty { current.deviceId }
+        
         prefs.edit()
             .putString("name", config.name)
             .putString("address", config.address)
@@ -43,10 +61,10 @@ class MasjidConfigRepository(context: Context) {
             .putString("treasury_qris", config.treasuryQrisData)
             .putInt("hadith_interval", config.hadithDisplayInterval)
             .putInt("hadith_duration", config.hadithDisplayDuration)
-            .putBoolean("is_activated", config.isActivated)
-            .putString("device_id", config.deviceId)
+            .putBoolean("is_activated", finalIsActivated) // ✅ GUNAKAN FINAL STATUS
+            .putString("device_id", finalDeviceId)      // ✅ GUNAKAN FINAL ID
             .putString("last_updated", config.lastUpdated)
-            .apply()
+            .commit() // 🔥 PAKE COMMIT BIAR SINCRONOUS (Sync ke Disk)
     }
 
     fun load(): MasjidConfig {

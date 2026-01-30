@@ -76,7 +76,7 @@ class AdminServer private constructor(
     private fun adminPage(session: IHTTPSession): Response {
         val config = repo.load()
         val isSaved = session.parameters["saved"] != null
-        val successScript = if (isSaved) "<script>alert('Update Berhasil!'); window.history.replaceState({}, '', '/');</script>" else ""
+        val successScript = if (isSaved) "<script>alert('Update Berhasil!\\n\\nNomor Seri: ${config.deviceId}\\nStatus: ${if (config.isActivated) "AKTIF" else "BELUM AKTIF"}'); window.history.replaceState({}, '', '/');</script>" else ""
         
         val html = """
             <!DOCTYPE html>
@@ -176,6 +176,29 @@ class AdminServer private constructor(
                         </div>
                     </div>
 
+                    <div class="card" style="border: 1px solid ${if (config.isActivated) "#81c784" else "#ef9a9a"}; background: ${if (config.isActivated) "#fafffa" else "#fffafa"}; overflow: hidden; position: relative;">
+                        <h3 style="color: ${if (config.isActivated) "#2e7d32" else "#c62828"};">📱 Informasi Lisensi</h3>
+                        <div class="grid">
+                            <div class="form-group">
+                                <label>Nomor Seri (Device ID)</label>
+                                <div style="font-family: monospace; font-weight: 800; font-size: 17px; color: #333; letter-spacing: 1px;">${config.deviceId}</div>
+                            </div>
+                            <div class="form-group">
+                                <label>Status Perangkat</label>
+                                <div style="margin-top: 5px;">
+                                    <span style="display: inline-block; padding: 5px 15px; border-radius: 20px; font-weight: 800; font-size: 13px; background: ${if (config.isActivated) "#e8f5e9" else "#ffebee"}; color: ${if (config.isActivated) "#2e7d32" else "#c62828"}; border: 1px solid ${if (config.isActivated) "#81c784" else "#ef9a9a"};">
+                                        ${if (config.isActivated) "✅ TERAKTIVASI" else "❌ BELUM AKTIF"}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <p style="font-size: 11px; color: var(--muted); margin: 10px 0 0 0; font-style: italic;">
+                            ${if (config.isActivated) "Lisensi aktif. Perangkat Anda sudah terdaftar di sistem." else "Gunakan Nomor Seri di atas untuk aktivasi melalui Admin Telegram."}
+                        </p>
+                        <input type="hidden" name="is_activated" value="${config.isActivated}">
+                        <input type="hidden" name="device_id" value="${config.deviceId}">
+                    </div>
+
                     <div class="card">
                         <h3>Lokasi & Waktu</h3>
                         <div class="grid">
@@ -257,6 +280,7 @@ class AdminServer private constructor(
                         </div>
                     </div>
 
+
                     <button type="submit">Simpan Konfigurasi</button>
                     <div style="height: 40px;"></div>
                 </form>
@@ -278,25 +302,34 @@ class AdminServer private constructor(
             // Log params biar keliatan di logcat kalau ada yang aneh
             android.util.Log.d("ADMIN_SERVER", "Received Parameters: ${p.keys}")
 
-            val config = MasjidConfig(
-                name = p["name"]?.first()?.trim() ?: "",
-                address = p["address"]?.first()?.trim() ?: "",
-                latitude = p["lat"]?.first()?.toDoubleOrNull() ?: -6.32,
-                longitude = p["lng"]?.first()?.toDoubleOrNull() ?: 107.02,
-                iqomahMinutes = p["iqomah"]?.first()?.toIntOrNull() ?: 5,
-                backgroundUrl = p["bg_url"]?.first()?.trim() ?: "",
-                themeName = p["theme_name"]?.first()?.trim() ?: "simple",
-                runningText = p["running_text"]?.first()?.trim() ?: "",
-                timeOffsetMinutes = p["time_offset"]?.first()?.toIntOrNull() ?: 0,
-                dateOffsetDays = p["date_offset"]?.first()?.toIntOrNull() ?: 0,
-                treasuryBalance = p["treasury_balance"]?.first()?.trim() ?: "0",
-                treasuryDescription = p["treasury_desc"]?.first()?.trim() ?: "Saldo Kas Masjid",
-                treasuryDisplayInterval = p["treasury_interval"]?.first()?.toIntOrNull() ?: 0,
-                treasuryDisplayDuration = p["treasury_duration"]?.first()?.toIntOrNull() ?: 15,
-                treasuryAccountInfo = p["treasury_account"]?.first()?.trim() ?: "",
-                treasuryQrisData = p["treasury_qris"]?.first()?.trim() ?: "",
-                hadithDisplayInterval = p["hadith_interval"]?.first()?.toIntOrNull() ?: 0,
-                hadithDisplayDuration = p["hadith_duration"]?.first()?.toIntOrNull() ?: 20,
+            val oldConfig = repo.load()
+            
+            // 🔥 Ambil dari parameter form (hidden input) sebagai pengaman tambahan kalau repo.load() stale
+            val pIsActivated = p["is_activated"]?.firstOrNull()?.toBoolean() ?: oldConfig.isActivated
+            val pDeviceId = p["device_id"]?.firstOrNull() ?: oldConfig.deviceId
+            
+            // 🔥 GUNAKAN .copy() BIAR DATA GAK KEHAPUS / RESET SENDIRI
+            val config = oldConfig.copy(
+                name = p["name"]?.first()?.trim() ?: oldConfig.name,
+                address = p["address"]?.first()?.trim() ?: oldConfig.address,
+                latitude = p["lat"]?.first()?.toDoubleOrNull() ?: oldConfig.latitude,
+                longitude = p["lng"]?.first()?.toDoubleOrNull() ?: oldConfig.longitude,
+                themeName = p["theme_name"]?.first()?.trim() ?: oldConfig.themeName,
+                iqomahMinutes = p["iqomah"]?.first()?.toIntOrNull() ?: oldConfig.iqomahMinutes,
+                backgroundUrl = p["bg_url"]?.first()?.trim() ?: oldConfig.backgroundUrl,
+                runningText = p["running_text"]?.first()?.trim() ?: oldConfig.runningText,
+                timeOffsetMinutes = p["time_offset"]?.first()?.toIntOrNull() ?: oldConfig.timeOffsetMinutes,
+                dateOffsetDays = p["date_offset"]?.first()?.toIntOrNull() ?: oldConfig.dateOffsetDays,
+                treasuryBalance = p["treasury_balance"]?.first()?.trim() ?: oldConfig.treasuryBalance,
+                treasuryDescription = p["treasury_desc"]?.first()?.trim() ?: oldConfig.treasuryDescription,
+                treasuryDisplayInterval = p["treasury_interval"]?.first()?.toIntOrNull() ?: oldConfig.treasuryDisplayInterval,
+                treasuryDisplayDuration = p["treasury_duration"]?.first()?.toIntOrNull() ?: oldConfig.treasuryDisplayDuration,
+                treasuryAccountInfo = p["treasury_account"]?.first()?.trim() ?: oldConfig.treasuryAccountInfo,
+                treasuryQrisData = p["treasury_qris"]?.first()?.trim() ?: oldConfig.treasuryQrisData,
+                hadithDisplayInterval = p["hadith_interval"]?.first()?.toIntOrNull() ?: oldConfig.hadithDisplayInterval,
+                hadithDisplayDuration = p["hadith_duration"]?.first()?.toIntOrNull() ?: oldConfig.hadithDisplayDuration,
+                isActivated = pIsActivated, // ✅ PASTIIN GAK RESET
+                deviceId = pDeviceId,      // ✅ PASTIIN GAK RESET
                 lastUpdated = SimpleDateFormat("d MMM yyyy HH:mm", Locale.forLanguageTag("id")).format(Date())
             )
 
