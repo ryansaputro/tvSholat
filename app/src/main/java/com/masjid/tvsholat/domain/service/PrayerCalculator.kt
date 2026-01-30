@@ -25,7 +25,8 @@ object PrayerCalculator {
         fun Date.withIhtiyati(): Date = Date(this.time + 2 * 60 * 1000)
         fun Date.format(): String = formatter.format(this)
 
-        val fajr = prayerTimes.fajr.withIhtiyati()
+         val fajr = prayerTimes.fajr.withIhtiyati()
+    //    val fajr = Date(System.currentTimeMillis() + 1 * 60 * 1000)
         val imsak = Date(fajr.time - 12 * 60 * 1000) // 10 menit sebelum Subuh asli (sebelum ihtiyati)
         val syuruq = prayerTimes.sunrise.withIhtiyati()
         val dhuhr = prayerTimes.dhuhr.withIhtiyati()

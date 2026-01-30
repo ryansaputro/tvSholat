@@ -86,6 +86,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
     // Image Loading (Coil)
     implementation(libs.coil)
+    
+    // QR Code Generation
+    implementation("com.google.zxing:core:3.5.3")
 }
 
 tasks.register("bumpPatch") {

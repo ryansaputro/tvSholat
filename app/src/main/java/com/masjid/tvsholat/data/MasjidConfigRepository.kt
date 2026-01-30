@@ -31,8 +31,15 @@ class MasjidConfigRepository(context: Context) {
             .putFloat("lng", config.longitude.toFloat())
             .putInt("iqomah", config.iqomahMinutes)
             .putString("bg_url", config.backgroundUrl)
+            .putString("theme_name", config.themeName)
+            .putString("running_text", config.runningText)
             .putInt("time_offset", config.timeOffsetMinutes)
             .putInt("date_offset", config.dateOffsetDays)
+            .putString("treasury_balance", config.treasuryBalance)
+            .putString("treasury_desc", config.treasuryDescription)
+            .putInt("treasury_interval", config.treasuryDisplayInterval)
+            .putInt("hadith_interval", config.hadithDisplayInterval)
+            .putString("last_updated", config.lastUpdated)
             .apply()
     }
 
@@ -44,8 +51,15 @@ class MasjidConfigRepository(context: Context) {
             longitude = prefs.getFloat("lng", 107.022f).toDouble(),
             iqomahMinutes = prefs.getInt("iqomah", 5),
             backgroundUrl = prefs.getString("bg_url", "") ?: "",
+            themeName = prefs.getString("theme_name", "simple") ?: "simple",
+            runningText = prefs.getString("running_text", "Selamat datang di Masjid Al-Kautsar. Luruskan dan rapatkan shaf sholat kita.") ?: "",
             timeOffsetMinutes = prefs.getInt("time_offset", 0),
-            dateOffsetDays = prefs.getInt("date_offset", 0)
+            dateOffsetDays = prefs.getInt("date_offset", 0),
+            treasuryBalance = prefs.getString("treasury_balance", "0") ?: "0",
+            treasuryDescription = prefs.getString("treasury_desc", "Saldo Kas Masjid") ?: "Saldo Kas Masjid",
+            treasuryDisplayInterval = prefs.getInt("treasury_interval", 0),
+            hadithDisplayInterval = prefs.getInt("hadith_interval", 0),
+            lastUpdated = prefs.getString("last_updated", "") ?: ""
         )
     }
 }

@@ -21,7 +21,7 @@ fun ClockHeader(now: Date) {
     // Sync Hijri with 'now' clock (which already includes the offset)
     val localDate = now.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
     val hijri = HijrahDate.from(localDate)
-    val hijriFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale("id", "ID"))
+    val hijriFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.forLanguageTag("id"))
     val hijriFormatted = hijri.format(hijriFormatter) + " H"
 
     Row(
@@ -40,7 +40,7 @@ fun ClockHeader(now: Date) {
 
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = SimpleDateFormat("EEEE, dd MMM yyyy", Locale("id", "ID")).format(now),
+                text = SimpleDateFormat("EEEE, dd MMM yyyy", Locale.forLanguageTag("id")).format(now),
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
