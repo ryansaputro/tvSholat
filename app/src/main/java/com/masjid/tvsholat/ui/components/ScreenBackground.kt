@@ -11,23 +11,38 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.masjid.tvsholat.R
+import java.io.File
 
 @Composable
 fun ScreenBackground(
     backgroundUrl: String,
+    backgroundType: String = "url",
+    backgroundLocalPath: String = "",
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
 
     Box(modifier = Modifier.fillMaxSize()) {
 
-        if (backgroundUrl.isNotEmpty()) {
+        // Determine which image to show based on type
+        val imageData = when (backgroundType) {
+            "upload" -> {
+                if (backgroundLocalPath.isNotEmpty()) {
+                    val file = File(backgroundLocalPath)
+                    if (file.exists()) file.toUri() else null
+                } else null
+            }
+            else -> backgroundUrl.takeIf { it.isNotEmpty() }
+        }
+
+        if (imageData != null) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
-                    .data(backgroundUrl)
+                    .data(imageData)
                     .crossfade(true)
                     .build(),
                 contentDescription = null,

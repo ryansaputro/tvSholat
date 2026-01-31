@@ -90,7 +90,7 @@ class MainActivity : ComponentActivity() {
     private fun startAdminServer(repo: MasjidConfigRepository) {
         Thread {
             try {
-                val adminServer = AdminServer.getInstance(repo)
+                val adminServer = AdminServer.getInstance(repo, this@MainActivity)
                 if (!adminServer.isAlive) {
                     adminServer.start()
                     Log.d("ADMIN_SERVER", "Admin server started on port 9090")

@@ -38,7 +38,11 @@ object PrayerCalculator {
             PrayerTime("IMSAK", imsak.format(), imsak),
             PrayerTime("SUBUH", fajr.format(), fajr),
             PrayerTime("TERBIT", syuruq.format(), syuruq),
-            PrayerTime("DZUHUR", dhuhr.format(), dhuhr),
+            PrayerTime(
+                if (Calendar.getInstance().apply { time = targetDate }.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY) "JUM'AT" else "DZUHUR",
+                dhuhr.format(),
+                dhuhr
+            ),
             PrayerTime("ASHAR", asr.format(), asr),
             PrayerTime("MAGHRIB", maghrib.format(), maghrib),
             PrayerTime("ISYA", isha.format(), isha)

@@ -191,6 +191,7 @@ fun ClassicHomeScreen(
                     size = 32
                 )
             }
+            Spacer(modifier = Modifier.height(24.dp))
         }
         // Anti Burn-in
         RunningText(text = config.runningText)

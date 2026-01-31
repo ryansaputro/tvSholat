@@ -50,23 +50,23 @@ fun DashboardHomeScreen(
                     .fillMaxWidth(0.25f)
                     .fillMaxHeight()
                     .background(Color.Black.copy(alpha = 0.5f))
-                    .padding(vertical = 8.dp, horizontal = 12.dp),
-                verticalArrangement = Arrangement.Center
+                    .padding(vertical = 16.dp, horizontal = 12.dp),
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
                 prayers.forEach { prayer ->
                     val isNext = prayer == nextPrayer
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 2.dp) // Kurangi padding luar
+                            .padding(vertical = 1.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(if (isNext) Color.White.copy(alpha = 0.1f) else Color.Transparent)
-                            .padding(horizontal = 10.dp, vertical = 6.dp) // Kurangi padding dalam
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = prayer.name.uppercase(),
                             color = if (isNext) Color(0xFFFFD54F) else Color.LightGray,
-                            fontSize = 16.sp, // Ukuran font diperkecil
+                            fontSize = 14.sp,
                             fontWeight = if (isNext) FontWeight.ExtraBold else FontWeight.Normal,
                             maxLines = 1,
                             softWrap = false
@@ -74,7 +74,7 @@ fun DashboardHomeScreen(
                         Text(
                             text = prayer.time,
                             color = if (isNext) Color.White else Color.Gray,
-                            fontSize = 24.sp, // Ukuran font diperkecil
+                            fontSize = 20.sp,
                             fontWeight = if (isNext) FontWeight.Black else FontWeight.Bold
                         )
                     }
@@ -170,6 +170,8 @@ fun DashboardHomeScreen(
                         size = 35
                     )
                 }
+                
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
         // Anti Burn-in

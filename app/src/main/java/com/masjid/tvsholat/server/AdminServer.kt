@@ -1,23 +1,30 @@
 package com.masjid.tvsholat.server
 
 import com.masjid.tvsholat.data.*
+import com.masjid.tvsholat.domain.model.InfoItem
 import kotlinx.coroutines.*
 import fi.iki.elonen.NanoHTTPD
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import java.io.File
+import java.io.FileOutputStream
+import android.content.Context
 
 
 class AdminServer private constructor(
-    private val repo: MasjidConfigRepository
+    private val repo: MasjidConfigRepository,
+    private val context: Context
 ) : NanoHTTPD(null, 9090) {
 
     companion object {
         private var instance: AdminServer? = null
 
-        fun getInstance(repo: MasjidConfigRepository): AdminServer {
+        fun getInstance(repo: MasjidConfigRepository, context: Context): AdminServer {
             if (instance == null) {
-                instance = AdminServer(repo)
+                instance = AdminServer(repo, context.applicationContext)
             }
             return instance!!
         }
@@ -154,7 +161,7 @@ class AdminServer private constructor(
                     <p>${if (config.lastUpdated.isNotEmpty()) "Update terakhir: ${config.lastUpdated}" else "Panel Konfigurasi Masjid"}</p>
                 </div>
                 
-                <form action="/save" method="POST">
+                <form action="/save" method="POST" enctype="multipart/form-data" id="mainForm">
                     <div class="card">
                         <h3>Informasi Masjid</h3>
                         <div class="form-group">
@@ -231,11 +238,33 @@ class AdminServer private constructor(
                             <label>Teks Berjalan</label>
                             <textarea name="running_text" rows="3">${config.runningText}</textarea>
                         </div>
+                        
                         <div class="form-group">
-                            <label>URL Gambar Background</label>
-                            <input name="bg_url" oninput="document.getElementById('preview').src=this.value" value="${config.backgroundUrl}">
-                            <div class="preview-box">
-                                <img id="preview" src="${config.backgroundUrl}" onerror="this.src='https://via.placeholder.com/400x200?text=Preview+Error'">
+                            <label>Background Layar</label>
+                            <div style="margin-bottom: 10px;">
+                                <label style="display: inline-flex; align-items: center; margin-right: 20px; font-weight: 400;">
+                                    <input type="radio" name="bg_type" value="url" ${if (config.backgroundType == "url") "checked" else ""} onchange="toggleBgInput()"> 
+                                    <span style="margin-left: 6px;">URL Gambar</span>
+                                </label>
+                                <label style="display: inline-flex; align-items: center; font-weight: 400;">
+                                    <input type="radio" name="bg_type" value="upload" ${if (config.backgroundType == "upload") "checked" else ""} onchange="toggleBgInput()"> 
+                                    <span style="margin-left: 6px;">Upload Foto</span>
+                                </label>
+                            </div>
+                            
+                            <div id="urlInput" style="display: ${if (config.backgroundType == "url") "block" else "none"};">
+                                <input name="bg_url" id="bgUrlField" oninput="updatePreview(this.value)" value="${config.backgroundUrl}" placeholder="https://example.com/gambar.jpg">
+                            </div>
+                            
+                            <div id="uploadInput" style="display: ${if (config.backgroundType == "upload") "block" else "none"};">
+                                <input type="file" name="bg_file" id="bgFileField" accept="image/*" onchange="handleFileSelect(event)" style="margin-bottom: 8px;">
+                                <div style="font-size: 12px; color: var(--muted);">Foto akan otomatis di-compress (max 1920px, HD quality)</div>
+                            </div>
+                            
+                            <input type="hidden" name="bg_local_path" id="bgLocalPath" value="${config.backgroundLocalPath}">
+                            
+                            <div class="preview-box" style="margin-top: 10px;">
+                                <img id="preview" src="${if (config.backgroundType == "upload" && config.backgroundLocalPath.isNotEmpty()) "file://" + config.backgroundLocalPath else config.backgroundUrl}" onerror="this.src='https://via.placeholder.com/400x200?text=Preview'">
                             </div>
                         </div>
                     </div>
@@ -280,11 +309,68 @@ class AdminServer private constructor(
                         </div>
                     </div>
 
+                    <div class="card">
+                        <h3>Papan Informasi</h3>
+                        <div class="grid">
+                            <div class="form-group">
+                                <label>Interval (Menit)</label>
+                                <input name="info_interval" type="number" value="${config.infoDisplayInterval}">
+                            </div>
+                            <div class="form-group">
+                                <label>Durasi (Detik)</label>
+                                <input name="info_duration" type="number" value="${config.infoDisplayDuration}">
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top:15px; border-top: 1px solid #eee; padding-top:15px;">
+                            ${
+                                (0..2).joinToString("\n") { index ->
+                                    val item = config.infoItems.getOrNull(index) ?: InfoItem("", "")
+                                    """
+                                    <div style="margin-bottom: 15px; padding: 10px; background: #f9f9f9; border-radius: 8px;">
+                                        <label style="color:#1b5e20;">Info #${index + 1}</label>
+                                        <input name="info_title_$index" value="${item.title}" placeholder="Judul Info" style="margin-bottom: 5px;">
+                                        <textarea name="info_content_$index" rows="2" placeholder="Isi Informasi">${item.content}</textarea>
+                                    </div>
+                                    """
+                                }
+                            }
+                        </div>
+                    </div>
+
 
                     <button type="submit">Simpan Konfigurasi</button>
                     <div style="height: 40px;"></div>
                 </form>
             </div>
+            <script>
+                function toggleBgInput() {
+                    const type = document.querySelector('input[name="bg_type"]:checked').value;
+                    document.getElementById('urlInput').style.display = type === 'url' ? 'block' : 'none';
+                    document.getElementById('uploadInput').style.display = type === 'upload' ? 'block' : 'none';
+                    
+                    // Update preview
+                    if (type === 'url') {
+                        updatePreview(document.getElementById('bgUrlField').value);
+                    }
+                }
+                
+                function updatePreview(url) {
+                    document.getElementById('preview').src = url || 'https://via.placeholder.com/400x200?text=Preview';
+                }
+                
+                function handleFileSelect(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        // Show preview
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            document.getElementById('preview').src = e.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                }
+            </script>
             </body>
             </html>
         """.trimIndent()
@@ -308,6 +394,30 @@ class AdminServer private constructor(
             val pIsActivated = p["is_activated"]?.firstOrNull()?.toBoolean() ?: oldConfig.isActivated
             val pDeviceId = p["device_id"]?.firstOrNull() ?: oldConfig.deviceId
             
+            // Handle file upload if present
+            val bgType = p["bg_type"]?.first()?.trim() ?: oldConfig.backgroundType
+            var bgLocalPath = p["bg_local_path"]?.first()?.trim() ?: oldConfig.backgroundLocalPath
+            
+            // Check if there's an uploaded file
+            if (bgType == "upload" && files.containsKey("bg_file")) {
+                val tempFilePath = files["bg_file"]
+                if (!tempFilePath.isNullOrEmpty()) {
+                    val tempFile = File(tempFilePath)
+                    if (tempFile.exists()) {
+                        try {
+                            // Compress and save
+                            val compressedPath = compressAndSaveImage(tempFile)
+                            if (compressedPath != null) {
+                                bgLocalPath = compressedPath
+                                android.util.Log.d("ADMIN_SERVER", "Image compressed and saved to: $compressedPath")
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("ADMIN_SERVER", "Error compressing image", e)
+                        }
+                    }
+                }
+            }
+            
             // 🔥 GUNAKAN .copy() BIAR DATA GAK KEHAPUS / RESET SENDIRI
             val config = oldConfig.copy(
                 name = p["name"]?.first()?.trim() ?: oldConfig.name,
@@ -317,6 +427,8 @@ class AdminServer private constructor(
                 themeName = p["theme_name"]?.first()?.trim() ?: oldConfig.themeName,
                 iqomahMinutes = p["iqomah"]?.first()?.toIntOrNull() ?: oldConfig.iqomahMinutes,
                 backgroundUrl = p["bg_url"]?.first()?.trim() ?: oldConfig.backgroundUrl,
+                backgroundType = bgType,
+                backgroundLocalPath = bgLocalPath,
                 runningText = p["running_text"]?.first()?.trim() ?: oldConfig.runningText,
                 timeOffsetMinutes = p["time_offset"]?.first()?.toIntOrNull() ?: oldConfig.timeOffsetMinutes,
                 dateOffsetDays = p["date_offset"]?.first()?.toIntOrNull() ?: oldConfig.dateOffsetDays,
@@ -328,6 +440,15 @@ class AdminServer private constructor(
                 treasuryQrisData = p["treasury_qris"]?.first()?.trim() ?: oldConfig.treasuryQrisData,
                 hadithDisplayInterval = p["hadith_interval"]?.first()?.toIntOrNull() ?: oldConfig.hadithDisplayInterval,
                 hadithDisplayDuration = p["hadith_duration"]?.first()?.toIntOrNull() ?: oldConfig.hadithDisplayDuration,
+                infoDisplayInterval = p["info_interval"]?.first()?.toIntOrNull() ?: oldConfig.infoDisplayInterval,
+                infoDisplayDuration = p["info_duration"]?.first()?.toIntOrNull() ?: oldConfig.infoDisplayDuration,
+                infoItems = (0..2).mapNotNull { index ->
+                    val title = p["info_title_$index"]?.first()?.trim()
+                    val content = p["info_content_$index"]?.first()?.trim()
+                    if (!title.isNullOrEmpty() && !content.isNullOrEmpty()) {
+                        InfoItem(title, content)
+                    } else null
+                },
                 isActivated = pIsActivated, // ✅ PASTIIN GAK RESET
                 deviceId = pDeviceId,      // ✅ PASTIIN GAK RESET
                 lastUpdated = SimpleDateFormat("d MMM yyyy HH:mm", Locale.forLanguageTag("id")).format(Date())
@@ -351,6 +472,48 @@ class AdminServer private constructor(
                 MIME_PLAINTEXT,
                 "ERROR: ${e.message}"
             )
+        }
+    }
+    
+    private fun compressAndSaveImage(sourceFile: File): String? {
+        return try {
+            // Decode image
+            val bitmap = BitmapFactory.decodeFile(sourceFile.absolutePath) ?: return null
+            
+            // Scale down if too large (max 1920px width for Full HD)
+            val scaledBitmap = if (bitmap.width > 1920) {
+                val newHeight = (bitmap.height * 1920 / bitmap.width)
+                Bitmap.createScaledBitmap(bitmap, 1920, newHeight, true)
+            } else {
+                bitmap
+            }
+            
+            // Save to internal storage
+            val bgDir = File(context.filesDir, "backgrounds")
+            if (!bgDir.exists()) {
+                bgDir.mkdirs()
+            }
+            
+            val fileName = "bg_${System.currentTimeMillis()}.jpg"
+            val targetFile = File(bgDir, fileName)
+            
+            // Compress to JPEG with 85% quality
+            FileOutputStream(targetFile).use { out ->
+                scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
+            }
+            
+            // Clean up
+            if (scaledBitmap != bitmap) {
+                scaledBitmap.recycle()
+            }
+            bitmap.recycle()
+            
+            android.util.Log.d("ADMIN_SERVER", "Compressed: ${sourceFile.length()} -> ${targetFile.length()} bytes")
+            
+            targetFile.absolutePath
+        } catch (e: Exception) {
+            android.util.Log.e("ADMIN_SERVER", "Error compressing image", e)
+            null
         }
     }
 

@@ -86,7 +86,7 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
         val prayerStart = prayer.date.time
         val adzanEnd = prayerStart + adzanPeriodMillis
         now.time in prayerStart until adzanEnd && 
-        prayer.name != "Imsak" && prayer.name != "Syuruq"
+        prayer.name != "IMSAK" && prayer.name != "TERBIT"
     }
 
     // 🔥 LOGIC BLANK: Tampil 1 menit setelah Adzan (30s - 90s)
@@ -95,7 +95,7 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
         val blankStart = prayerStart + adzanPeriodMillis
         val blankEnd = prayerStart + totalDelayMillis
         now.time in blankStart until blankEnd && 
-        prayer.name != "Imsak" && prayer.name != "Syuruq"
+        prayer.name != "IMSAK" && prayer.name != "TERBIT"
     }
 
     // 🔥 LOGIC IQOMAH: Jalan seteleh Adzan + Blank beres (setelah 1 menit 30 detik)
@@ -104,7 +104,8 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
         val iqomahStart = prayerStart + totalDelayMillis
         val iqomahEnd = iqomahStart + (config.iqomahMinutes * 60 * 1000)
         now.time in iqomahStart until iqomahEnd && 
-        prayer.name != "Imsak" && prayer.name != "Syuruq"
+        prayer.name != "IMSAK" && prayer.name != "TERBIT" &&
+        prayer.name != "JUM'AT"
     }
 
     // 🔥 LOGIC TREASURY: Tampil setiap interval (misal tiap 5 menit)
@@ -119,7 +120,17 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
                         (now.time / 1000 / 60) % config.hadithDisplayInterval == 0L && 
                         (now.time / 1000 % 60) in 30L until (30L + config.hadithDisplayDuration)
 
-    ScreenBackground(backgroundUrl = config.backgroundUrl) {
+    // 🔥 LOGIC INFO BOARD: Tampil setiap interval
+    // Syarat: Interval > 0, Menit habis dibagi interval, dan detik antara 40-55
+    val isInfoPeriod = config.infoDisplayInterval > 0 && 
+                      (now.time / 1000 / 60) % config.infoDisplayInterval == 0L && 
+                      (now.time / 1000 % 60) in 45L until (45L + config.infoDisplayDuration)
+
+    ScreenBackground(
+        backgroundUrl = config.backgroundUrl,
+        backgroundType = config.backgroundType,
+        backgroundLocalPath = config.backgroundLocalPath
+    ) {
         if (currentPrayerInAdzan != null) {
             com.masjid.tvsholat.ui.components.AdzanScreen(
                 prayerName = currentPrayerInAdzan.name
@@ -143,6 +154,9 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
         } else if (isHadithPeriod) {
             // 🔥 HADITS HARIAN
             HadithScreen(config = config, now = now)
+        } else if (isInfoPeriod && config.infoItems.isNotEmpty()) {
+            // 🔥 PAPAN INFORMASI
+            com.masjid.tvsholat.ui.components.InfoScreen(config = config)
         } else {
             // 🔥 PILIH TEMA DISINI
             when (config.themeName) {

@@ -150,6 +150,8 @@ fun ModernHomeScreen(
                             size = 40
                         )
                     }
+                    
+                    Spacer(modifier = Modifier.height(32.dp))
                 }
 
                 // RIGHT SIDE: Prayer Times

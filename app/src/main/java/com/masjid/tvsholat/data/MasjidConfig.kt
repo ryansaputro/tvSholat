@@ -7,6 +7,8 @@ data class MasjidConfig(
     val longitude: Double,
     val iqomahMinutes: Int,
     val backgroundUrl: String = "",
+    val backgroundType: String = "url", // "url" or "upload"
+    val backgroundLocalPath: String = "",
     val themeName: String = "simple",
     val runningText: String = "Selamat datang di Masjid Al-Kautsar. Luruskan dan rapatkan shaf sholat kita.",
     val timeOffsetMinutes: Int = 0,
@@ -21,5 +23,8 @@ data class MasjidConfig(
     val hadithDisplayDuration: Int = 20,
     val isActivated: Boolean = false,
     val deviceId: String = "",
-    val lastUpdated: String = ""
+    val lastUpdated: String = "",
+    val infoDisplayInterval: Int = 0,
+    val infoDisplayDuration: Int = 15,
+    val infoItems: List<com.masjid.tvsholat.domain.model.InfoItem> = emptyList()
 )

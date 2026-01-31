@@ -1,5 +1,8 @@
 package com.masjid.tvsholat.data
 
+import com.masjid.tvsholat.domain.model.InfoItem
+import org.json.JSONArray
+import org.json.JSONObject
 import android.content.Context
 import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,6 +52,8 @@ class MasjidConfigRepository private constructor(context: Context) {
             .putFloat("lng", config.longitude.toFloat())
             .putInt("iqomah", config.iqomahMinutes)
             .putString("bg_url", config.backgroundUrl)
+            .putString("bg_type", config.backgroundType)
+            .putString("bg_local_path", config.backgroundLocalPath)
             .putString("theme_name", config.themeName)
             .putString("running_text", config.runningText)
             .putInt("time_offset", config.timeOffsetMinutes)
@@ -63,7 +68,18 @@ class MasjidConfigRepository private constructor(context: Context) {
             .putInt("hadith_duration", config.hadithDisplayDuration)
             .putBoolean("is_activated", finalIsActivated) // ✅ GUNAKAN FINAL STATUS
             .putString("device_id", finalDeviceId)      // ✅ GUNAKAN FINAL ID
+            .putString("device_id", finalDeviceId)      // ✅ GUNAKAN FINAL ID
             .putString("last_updated", config.lastUpdated)
+            .putInt("info_interval", config.infoDisplayInterval)
+            .putInt("info_duration", config.infoDisplayDuration)
+            .putString("info_items_json", JSONArray().apply {
+                config.infoItems.forEach { item ->
+                    put(JSONObject().apply {
+                        put("title", item.title)
+                        put("content", item.content)
+                    })
+                }
+            }.toString())
             .commit() // 🔥 PAKE COMMIT BIAR SINCRONOUS (Sync ke Disk)
     }
 
@@ -75,6 +91,8 @@ class MasjidConfigRepository private constructor(context: Context) {
             longitude = prefs.getFloat("lng", 107.022f).toDouble(),
             iqomahMinutes = prefs.getInt("iqomah", 5),
             backgroundUrl = prefs.getString("bg_url", "") ?: "",
+            backgroundType = prefs.getString("bg_type", "url") ?: "url",
+            backgroundLocalPath = prefs.getString("bg_local_path", "") ?: "",
             themeName = prefs.getString("theme_name", "simple") ?: "simple",
             runningText = prefs.getString("running_text", "Selamat datang di Masjid Al-Kautsar. Luruskan dan rapatkan shaf sholat kita.") ?: "",
             timeOffsetMinutes = prefs.getInt("time_offset", 0),
@@ -89,7 +107,24 @@ class MasjidConfigRepository private constructor(context: Context) {
             hadithDisplayDuration = prefs.getInt("hadith_duration", 20),
             isActivated = prefs.getBoolean("is_activated", false),
             deviceId = prefs.getString("device_id", "") ?: "",
-            lastUpdated = prefs.getString("last_updated", "") ?: ""
+            lastUpdated = prefs.getString("last_updated", "") ?: "",
+            infoDisplayInterval = prefs.getInt("info_interval", 0),
+            infoDisplayDuration = prefs.getInt("info_duration", 15),
+            infoItems = try {
+                val jsonString = prefs.getString("info_items_json", "[]") ?: "[]"
+                val jsonArray = JSONArray(jsonString)
+                val list = mutableListOf<InfoItem>()
+                for (i in 0 until jsonArray.length()) {
+                    val obj = jsonArray.getJSONObject(i)
+                    list.add(InfoItem(
+                        title = obj.optString("title"),
+                        content = obj.optString("content")
+                    ))
+                }
+                list
+            } catch (e: Exception) {
+                emptyList()
+            }
         )
     }
 }
