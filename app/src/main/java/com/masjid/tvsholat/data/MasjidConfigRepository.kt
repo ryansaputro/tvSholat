@@ -51,6 +51,7 @@ class MasjidConfigRepository private constructor(context: Context) {
             .putFloat("lat", config.latitude.toFloat())
             .putFloat("lng", config.longitude.toFloat())
             .putInt("iqomah", config.iqomahMinutes)
+            .putInt("sholat_duration", config.sholatDurationMinutes)
             .putString("bg_url", config.backgroundUrl)
             .putString("bg_type", config.backgroundType)
             .putString("bg_local_path", config.backgroundLocalPath)
@@ -77,9 +78,12 @@ class MasjidConfigRepository private constructor(context: Context) {
                     put(JSONObject().apply {
                         put("title", item.title)
                         put("content", item.content)
+                        put("type", item.type)
                     })
                 }
             }.toString())
+            .putString("manual_peers", JSONArray(config.manualPeers).toString())
+            .putString("ignored_peers", JSONArray(config.ignoredPeers).toString())
             .commit() // 🔥 PAKE COMMIT BIAR SINCRONOUS (Sync ke Disk)
     }
 
@@ -92,6 +96,7 @@ class MasjidConfigRepository private constructor(context: Context) {
             iqomahMinutes = prefs.getInt("iqomah", 5),
             backgroundUrl = prefs.getString("bg_url", "") ?: "",
             backgroundType = prefs.getString("bg_type", "url") ?: "url",
+            sholatDurationMinutes = prefs.getInt("sholat_duration", 10),
             backgroundLocalPath = prefs.getString("bg_local_path", "") ?: "",
             themeName = prefs.getString("theme_name", "simple") ?: "simple",
             runningText = prefs.getString("running_text", "Selamat datang di Masjid Al-Kautsar. Luruskan dan rapatkan shaf sholat kita.") ?: "",
@@ -118,8 +123,31 @@ class MasjidConfigRepository private constructor(context: Context) {
                     val obj = jsonArray.getJSONObject(i)
                     list.add(InfoItem(
                         title = obj.optString("title"),
-                        content = obj.optString("content")
+                        content = obj.optString("content"),
+                        type = obj.optString("type", "text")
                     ))
+                }
+                list
+            } catch (e: Exception) {
+                emptyList()
+            },
+            manualPeers = try {
+                val jsonString = prefs.getString("manual_peers", "[]") ?: "[]"
+                val jsonArray = JSONArray(jsonString)
+                val list = mutableListOf<String>()
+                for (i in 0 until jsonArray.length()) {
+                    list.add(jsonArray.getString(i))
+                }
+                list
+            } catch (e: Exception) {
+                emptyList()
+            },
+            ignoredPeers = try {
+                val jsonString = prefs.getString("ignored_peers", "[]") ?: "[]"
+                val jsonArray = JSONArray(jsonString)
+                val list = mutableListOf<String>()
+                for (i in 0 until jsonArray.length()) {
+                    list.add(jsonArray.getString(i))
                 }
                 list
             } catch (e: Exception) {

@@ -167,7 +167,7 @@ fun DashboardHomeScreen(
                     
                     com.masjid.tvsholat.ui.components.QrPanel(
                         content = "http://$deviceIp:9090",
-                        size = 35
+                        size = 120
                     )
                 }
                 

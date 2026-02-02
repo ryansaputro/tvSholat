@@ -107,24 +107,65 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
         prayer.name != "IMSAK" && prayer.name != "TERBIT" &&
         prayer.name != "JUM'AT"
     }
+    
+    // 🔥 LOGIC SHOLAT: Tampil setelah Iqomah selesai (Layar Hitam Standby)
+    val currentPrayerInSholat = prayers.firstOrNull { prayer ->
+        val prayerStart = prayer.date.time
+        val iqomahStart = prayerStart + totalDelayMillis
+        val iqomahEnd = iqomahStart + (config.iqomahMinutes * 60 * 1000)
+        val sholatEnd = iqomahEnd + (config.sholatDurationMinutes * 60 * 1000)
+        
+        now.time in iqomahEnd until sholatEnd &&
+        prayer.name != "IMSAK" && prayer.name != "TERBIT"
+    }
+
+    // 🔥 HELPER: Apakah sedang ada event sholat (Adzan/Iqomah/Sholat)?
+    val isPrayerEventActive = currentPrayerInAdzan != null || 
+                             currentPrayerInBlank != null || 
+                             currentPrayerInIqomah != null || 
+                             currentPrayerInSholat != null
+
+    // 🔥 LOGIC NEAR ADZAN: Suppressed 5 menit sebelum Adzan
+    val isNearAdzan = prayers.any { prayer ->
+        val diff = prayer.date.time - now.time
+        diff in 0L until (5 * 60 * 1000L) && 
+        prayer.name != "IMSAK" && prayer.name != "TERBIT"
+    }
+
+    // Flag untuk menentukan apakah boleh menampilkan konten rotasi (Hadits/Kas/Info)
+    val canShowRotation = !isPrayerEventActive && !isNearAdzan
 
     // 🔥 LOGIC TREASURY: Tampil setiap interval (misal tiap 5 menit)
-    // Syarat: Interval > 0, Menit habis dibagi interval, dan detik antara 0-15
-    val isTreasuryPeriod = config.treasuryDisplayInterval > 0 && 
+    val isTreasuryPeriod = canShowRotation &&
+                          config.treasuryDisplayInterval > 0 && 
                           (now.time / 1000 / 60) % config.treasuryDisplayInterval == 0L && 
                           (now.time / 1000 % 60) in 0L until config.treasuryDisplayDuration.toLong()
 
-    // 🔥 LOGIC HADITH: Tampil setiap interval (misal tiap 3 menit)
-    // Syarat: Interval > 0, Menit habis dibagi interval, dan detik antara 20-40 (biar ga tabrakan sama Kas)
-    val isHadithPeriod = config.hadithDisplayInterval > 0 && 
+    // 🔥 LOGIC HADITH: Tampil setiap interval
+    val isHadithPeriod = canShowRotation &&
+                        config.hadithDisplayInterval > 0 && 
                         (now.time / 1000 / 60) % config.hadithDisplayInterval == 0L && 
                         (now.time / 1000 % 60) in 30L until (30L + config.hadithDisplayDuration)
 
     // 🔥 LOGIC INFO BOARD: Tampil setiap interval
-    // Syarat: Interval > 0, Menit habis dibagi interval, dan detik antara 40-55
-    val isInfoPeriod = config.infoDisplayInterval > 0 && 
-                      (now.time / 1000 / 60) % config.infoDisplayInterval == 0L && 
-                      (now.time / 1000 % 60) in 45L until (45L + config.infoDisplayDuration)
+    val currentSecond = (now.time / 1000 % 60)
+    val infoItemCount = if (config.infoItems.isNotEmpty()) config.infoItems.size else 1
+    val totalInfoDuration = (config.infoDisplayDuration * infoItemCount).toLong()
+    val infoEndSecond = 45L + totalInfoDuration
+    
+    val isInfoPeriod = if (canShowRotation && config.infoDisplayInterval > 0) {
+        val minuteNum = now.time / 1000 / 60
+        val isInfoMinute = (minuteNum % config.infoDisplayInterval == 0L)
+        val isPrevInfoMinute = ((minuteNum - 1) % config.infoDisplayInterval == 0L)
+        
+        if (infoEndSecond <= 60) {
+            isInfoMinute && currentSecond in 45L until infoEndSecond
+        } else {
+            (isInfoMinute && currentSecond >= 45L) || (isPrevInfoMinute && currentSecond < (infoEndSecond % 60))
+        }
+    } else {
+        false
+    }
 
     ScreenBackground(
         backgroundUrl = config.backgroundUrl,
@@ -148,6 +189,17 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
                 prayerName = currentPrayerInIqomah.name,
                 timeLeftMillis = remainingMillis
             )
+        } else if (currentPrayerInSholat != null) {
+            // 🔥 LAYAR HITAM SAAT SHOLAT
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+                // Opsional: Kasih teks halus biar gak dikira TV mati total
+                Text(
+                    text = "Layar Standby Sholat ${currentPrayerInSholat.name}",
+                    color = Color.DarkGray, // Subtle but visible
+                    fontSize = 12.sp,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(20.dp)
+                )
+            }
         } else if (isTreasuryPeriod) {
             // 🔥 LAPORAN KAS
             TreasuryScreen(config = config)
@@ -161,6 +213,7 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
             // 🔥 PILIH TEMA DISINI
             when (config.themeName) {
                 "modern" -> ModernHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
+                "elegant" -> ElegantHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
                 "classic" -> ClassicHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
                 "dashboard" -> DashboardHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
                 else -> SimpleHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)

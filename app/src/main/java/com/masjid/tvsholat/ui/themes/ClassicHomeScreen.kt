@@ -188,7 +188,7 @@ fun ClassicHomeScreen(
                 
                 com.masjid.tvsholat.ui.components.QrPanel(
                     content = "http://$deviceIp:9090",
-                    size = 32
+                    size = 120
                 )
             }
             Spacer(modifier = Modifier.height(24.dp))

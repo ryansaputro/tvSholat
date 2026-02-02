@@ -147,7 +147,7 @@ fun ModernHomeScreen(
                         
                         com.masjid.tvsholat.ui.components.QrPanel(
                             content = "http://$deviceIp:9090",
-                            size = 40
+                            size = 120
                         )
                     }
                     

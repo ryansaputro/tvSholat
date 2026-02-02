@@ -26,5 +26,8 @@ data class MasjidConfig(
     val lastUpdated: String = "",
     val infoDisplayInterval: Int = 0,
     val infoDisplayDuration: Int = 15,
-    val infoItems: List<com.masjid.tvsholat.domain.model.InfoItem> = emptyList()
+    val sholatDurationMinutes: Int = 10,
+    val infoItems: List<com.masjid.tvsholat.domain.model.InfoItem> = emptyList(),
+    val manualPeers: List<String> = emptyList(),
+    val ignoredPeers: List<String> = emptyList()
 )

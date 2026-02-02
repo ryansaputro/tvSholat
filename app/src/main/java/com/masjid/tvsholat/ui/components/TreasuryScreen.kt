@@ -1,7 +1,9 @@
 package com.masjid.tvsholat.ui.components
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -12,12 +14,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.masjid.tvsholat.data.MasjidConfig
+import com.masjid.tvsholat.utils.QrCodeUtils
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
 
 @Composable
 fun TreasuryScreen(config: MasjidConfig) {
@@ -83,133 +89,217 @@ fun TreasuryScreen(config: MasjidConfig) {
                 }
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             
             // Rekening & QRIS Section
             if (config.treasuryAccountInfo.isNotEmpty() || config.treasuryQrisData.isNotEmpty()) {
-                if (config.treasuryAccountInfo.isNotEmpty() && config.treasuryQrisData.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(0.98f),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Account Info & Syukron (Left Side)
-                        Column(modifier = Modifier.weight(1.2f), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "TRANSFER :",
-                                color = Color(0xFFFFD54F),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = config.treasuryAccountInfo,
-                                color = Color.White,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Black,
-                                textAlign = TextAlign.Center
-                            )
-                            
-                            Spacer(modifier = Modifier.height(12.dp))
-                            
-                            Text(
-                                text = "Syukran jazakumullah khairan katsiran atas infaq/shadaqah Bapak/Ibu sekalian.\nSemoga menjadi amal jariyah yang berlipat ganda.",
-                                color = Color(0xFFA5D6A7),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                textAlign = TextAlign.Center,
-                                lineHeight = 18.sp
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.width(16.dp))
-                        
-                        // QRIS (Right Side)
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "QRIS :",
-                                color = Color(0xFFFFD54F),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Box(
-                                modifier = Modifier
-                                    .size(130.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color.White)
-                                    .padding(4.dp)
-                            ) {
-                                QrPanel(content = config.treasuryQrisData, size = 122)
-                            }
-                        }
-                    }
-                } else {
-                    // Only one exists, use Column and include Syukron
+                Row(
+                    modifier = Modifier.fillMaxWidth(0.9f),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Left Column: Account Info & Gratitude
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxWidth(0.85f)
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.Start
                     ) {
                         if (config.treasuryAccountInfo.isNotEmpty()) {
                             Text(
-                                text = "TRANSFER :",
+                                text = "INFORMASI TRANSFER :",
                                 color = Color(0xFFFFD54F),
                                 fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Start
                             )
-                            Text(
-                                text = config.treasuryAccountInfo,
-                                color = Color.White,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Black,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                        
-                        if (config.treasuryQrisData.isNotEmpty()) {
-                            Text(
-                                text = "SCAN QRIS :",
-                                color = Color(0xFFFFD54F),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
                             Box(
                                 modifier = Modifier
-                                    .size(160.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color.White)
-                                    .padding(8.dp)
+                                    .background(Color.White.copy(alpha = 0.08f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 16.dp, vertical = 12.dp)
                             ) {
-                                QrPanel(content = config.treasuryQrisData, size = 144)
+                                Text(
+                                    text = config.treasuryAccountInfo,
+                                    color = Color.White,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    textAlign = TextAlign.Start,
+                                    lineHeight = 24.sp
+                                )
                             }
+                            Spacer(modifier = Modifier.height(24.dp))
                         }
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
                         
                         Text(
                             text = "Syukran jazakumullah khairan katsiran atas infaq/shadaqah Bapak/Ibu sekalian.\nSemoga menjadi amal jariyah yang berlipat ganda.",
                             color = Color(0xFFA5D6A7),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 20.sp
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Start,
+                            lineHeight = 26.sp
+                        )
+                    }
+                    
+                    if (config.treasuryQrisData.isNotEmpty()) {
+                        Spacer(modifier = Modifier.width(32.dp))
+                        // Right Column: QRIS Template
+                        QrisTemplate(
+                            merchantName = config.name,
+                            nmid = "ID0309494049908", // Reference NMID or dynamic if needed
+                            content = config.treasuryQrisData, 
+                            qrResolution = 150  // Reduced to prevent bottom cutoff
                         )
                     }
                 }
             } else {
-                // No info/qris, just show Syukron at bottom of column
+                // No info/qris, just show Syukron
                 Text(
                     text = "Syukran jazakumullah khairan katsiran atas infaq/shadaqah Bapak/Ibu sekalian.\nSemoga menjadi amal jariyah yang berlipat ganda.",
                     color = Color(0xFFA5D6A7),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 20.sp
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Left,
+                    lineHeight = 32.sp
                 )
             }
         }
         
         // Anti Burn-in
         RunningText(text = config.runningText)
+    }
+}
+
+@Composable
+fun QrisTemplate(merchantName: String, nmid: String, content: String, qrResolution: Int) {
+    Box(
+        modifier = Modifier
+            .width(100.dp) // Further reduced to 100dp to prevent cutoff
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White)
+            .padding(bottom = 0.dp)
+    ) {
+        // Geometric Background Decorations (Red Accents)
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val w = this.size.width
+            val h = this.size.height
+
+            // 1. Left Red Arrow/Strip
+            val leftArrow = Path().apply {
+                moveTo(0f, 0.25f * h)
+                lineTo(0.12f * w, 0.3f * h)
+                lineTo(0.12f * w, 0.5f * h)
+                lineTo(0f, 0.55f * h)
+                close()
+            }
+            drawPath(leftArrow, Color(0xFFD32F2F))
+
+            // 2. Bottom-Right Red Accent (The Shard)
+            val bottomRightShard = Path().apply {
+                moveTo(w, 0.85f * h)
+                lineTo(0.85f * w, h)
+                lineTo(w, h)
+                close()
+            }
+            drawPath(bottomRightShard, Color(0xFFD32F2F))
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp), // Reduced padding
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Header Row (Add padding here manually)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                // QRIS Label
+                Column {
+                    Text(
+                        text = "QRIS",
+                        color = Color.Black,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = (-0.5).sp
+                    )
+                    Text(
+                        text = "QR Code Standar\nPembayaran Nasional",
+                        color = Color.Black,
+                        fontSize = 4.sp,
+                        fontWeight = FontWeight.Bold,
+                        lineHeight = 5.sp
+                    )
+                }
+
+                // GPN Logo Placeholder
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(modifier = Modifier.size(14.dp)) {
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            // Simple Red Eagle shape
+                            val eagle = Path().apply {
+                                moveTo(size.width * 0.5f, 0f)
+                                lineTo(size.width, size.height * 0.5f)
+                                lineTo(size.width * 0.7f, size.height)
+                                lineTo(size.width * 0.3f, size.height)
+                                lineTo(0f, size.height * 0.5f)
+                                close()
+                            }
+                            drawPath(eagle, Color(0xFFD32F2F))
+                        }
+                    }
+                    Text("GPN", color = Color(0xFF0D47A1), fontSize = 6.sp, fontWeight = FontWeight.Black)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Merchant Name (Clean & Simple)
+            Text(
+                text = "MUSHOLA AL BADR",
+                color = Color.Black,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
+            
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // QR Code Box (NGEPAS - MUST TOUCH EDGES)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth() // Touches edges of 140dp template
+                    .aspectRatio(1f)
+                    .background(Color.White)
+                    .padding(0.dp) // ZERO PADDING: NGEPAS!
+            ) {
+                val bitmap = remember(content) {
+                    QrCodeUtils.generateQrBitmap(content, 600)
+                }
+                bitmap?.let {
+                    Image(
+                        bitmap = it.asImageBitmap(),
+                        contentDescription = "QRIS",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            // Footer (Add padding here)
+            Text(
+                text = "Dicetak oleh: Mushola Al Badr",
+                color = Color.DarkGray,
+                fontSize = 5.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.Start)
+                    .padding(horizontal = 8.dp, vertical = 1.dp)
+            )
+        }
     }
 }
