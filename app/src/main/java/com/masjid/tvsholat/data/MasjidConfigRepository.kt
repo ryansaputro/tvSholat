@@ -85,6 +85,7 @@ class MasjidConfigRepository private constructor(context: Context) {
             .putString("manual_peers", JSONArray(config.manualPeers).toString())
             .putString("ignored_peers", JSONArray(config.ignoredPeers).toString())
             .putBoolean("is_time_master", config.isTimeMaster)
+            .putBoolean("enable_tarhim", config.enableTarhim)
             .commit() // 🔥 PAKE COMMIT BIAR SINCRONOUS (Sync ke Disk)
     }
 
@@ -154,7 +155,8 @@ class MasjidConfigRepository private constructor(context: Context) {
             } catch (e: Exception) {
                 emptyList()
             },
-            isTimeMaster = prefs.getBoolean("is_time_master", false)
+            isTimeMaster = prefs.getBoolean("is_time_master", false),
+            enableTarhim = prefs.getBoolean("enable_tarhim", false)
         )
     }
 }

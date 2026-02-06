@@ -178,12 +178,12 @@ fun GrandHomeScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(Color(0xFFF57F17).copy(alpha = 0.9f))
+                                .background(Color(0xFF0D47A1).copy(alpha = 0.9f)) // Deep Blue instead of Amber
                                 .padding(horizontal = 32.dp, vertical = 12.dp)
                         ) {
                             Text(
                                 text = "MENUJU ${it.name.uppercase()} - ${String.format("%02d:%02d:%02d", h, m, s)}",
-                                color = Color.Black,
+                                color = Color.White,
                                 fontSize = 28.sp,
                                 fontWeight = FontWeight.ExtraBold
                             )

@@ -30,5 +30,6 @@ data class MasjidConfig(
     val infoItems: List<com.masjid.tvsholat.domain.model.InfoItem> = emptyList(),
     val manualPeers: List<String> = emptyList(),
     val ignoredPeers: List<String> = emptyList(),
-    val isTimeMaster: Boolean = false
+    val isTimeMaster: Boolean = false,
+    val enableTarhim: Boolean = false
 )

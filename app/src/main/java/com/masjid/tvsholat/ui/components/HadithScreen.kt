@@ -58,8 +58,8 @@ fun HadithScreen(config: MasjidConfig, now: Date) {
         modifier = Modifier
             .fillMaxSize()
             .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF004D40), Color(0xFF00241B))
+                Brush.radialGradient(
+                    colors = listOf(Color(0xFF311B92), Color(0xFF000000))
                 )
             ),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -71,24 +71,32 @@ fun HadithScreen(config: MasjidConfig, now: Date) {
                 .weight(1f)
                 .padding(horizontal = 48.dp, vertical = 24.dp)
         ) {
-            Text(
-                text = "KUTIPAN HADITS HARIAN",
-                color = Color(0xFFFFD54F),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Light,
-                letterSpacing = 4.sp
-            )
+            // Header Badge
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0xFFE65100)) // Deep Orange for Wisdom/Hadith
+                    .padding(horizontal = 24.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = "KUTIPAN HADITS HARIAN",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+            }
             
             Spacer(modifier = Modifier.height(24.dp))
             
             // Hadith Box
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.95f)
+                    .fillMaxWidth(0.9f)
                     .clip(RoundedCornerShape(24.dp))
-                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(24.dp))
+                    .border(1.dp, Color(0xFFFFD54F).copy(alpha = 0.5f), RoundedCornerShape(24.dp))
                     .background(Color.White.copy(alpha = 0.05f))
-                    .padding(32.dp),
+                    .padding(42.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -109,11 +117,11 @@ fun HadithScreen(config: MasjidConfig, now: Date) {
                     Text(
                         text = "\"${hadith.text}\"",
                         color = Color.White,
-                        fontSize = 24.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                         fontStyle = FontStyle.Italic,
                         textAlign = TextAlign.Center,
-                        lineHeight = 34.sp
+                        lineHeight = 26.sp
                     )
                     
                     Spacer(modifier = Modifier.height(20.dp))

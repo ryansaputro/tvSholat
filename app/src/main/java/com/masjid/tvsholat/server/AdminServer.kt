@@ -236,6 +236,15 @@ class AdminServer private constructor(
                                 <small style="color: #666; font-size: 11px;">Layar hitam setelah iqomah.</small>
                             </div>
                         </div>
+                        <div style="margin-top: 15px; border-top: 1px dashed #eee; padding-top: 15px;">
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="checkbox" name="enable_tarhim" style="width: auto; margin-right: 10px;" value="true" ${if (config.enableTarhim) "checked" else ""}>
+                                <div>
+                                    <span style="font-weight: 600; display: block;">Aktifkan Sholawat Tarhim</span>
+                                    <span style="font-size: 11px; color: #666; font-weight: normal;">Menampilkan teks Arab & Terjemahan Sholawat Tarhim otomatis saat waktu IMSAK tiba.</span>
+                                </div>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="card" style="border: 1px solid ${if (config.isActivated) "#81c784" else "#ef9a9a"}; background: ${if (config.isActivated) "#fafffa" else "#fffafa"}; overflow: hidden; position: relative;">
@@ -400,20 +409,23 @@ class AdminServer private constructor(
                                 <input name="info_interval" type="number" value="${config.infoDisplayInterval}">
                             </div>
                             <div class="form-group">
-                                <label>Durasi (Detik)</label>
+                                <label>Durasi Total (Detik)</label>
                                 <input name="info_duration" type="number" value="${config.infoDisplayDuration}">
                             </div>
                         </div>
                         
-                        <div style="margin-top:15px; border-top: 1px solid #eee; padding-top:15px;">
+                        <div id="infoItemsContainer" style="margin-top:15px; border-top: 1px solid #eee; padding-top:15px;">
                             ${
-                                (0..2).joinToString("\n") { index ->
-                                    val item = config.infoItems.getOrNull(index) ?: InfoItem("", "")
+                                config.infoItems.mapIndexed { index, item ->
+                                    val safeContent = item.content.replace("\"", "&quot;")
+                                    val safeTitle = item.title.replace("\"", "&quot;")
                                     """
-                                    <div style="margin-bottom: 20px; padding: 15px; background: #f9f9f9; border-radius: 12px; border: 1px solid #eee;">
+                                    <div class="info-item" id="info_item_$index" style="margin-bottom: 20px; padding: 15px; background: #f9f9f9; border-radius: 12px; border: 1px solid #eee; position: relative;">
+                                        <button type="button" onclick="removeInfoItem($index)" style="position: absolute; top: 10px; right: 10px; background: #ffebee; color: #c62828; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; width: auto; box-shadow: none;">hapus</button>
+                                        
                                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                                             <label style="color:#1b5e20; font-weight: 800; font-size: 16px;">Info #${index + 1}</label>
-                                            <div style="background: #eee; padding: 4px; border-radius: 8px; display: flex; gap: 4px;">
+                                            <div style="background: #eee; padding: 4px; border-radius: 8px; display: flex; gap: 4px; margin-right: 50px;">
                                                 <label style="font-size: 12px; cursor: pointer; padding: 4px 10px; border-radius: 6px; display: flex; align-items: center;" id="label_text_$index">
                                                     <input type="radio" name="info_type_$index" value="text" ${if (item.type == "text") "checked" else ""} onchange="updateInfoUI($index)" style="margin-right: 5px;"> Teks Kaya
                                                 </label>
@@ -425,7 +437,7 @@ class AdminServer private constructor(
                                         
                                         <div id="title_group_$index" style="margin-bottom: 10px; ${if (item.type == "image") "display:none;" else ""}">
                                             <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Judul Info</label>
-                                            <input name="info_title_$index" value="${item.title}" placeholder="Judul Info" style="margin-bottom: 0;">
+                                            <input name="info_title_$index" value="$safeTitle" placeholder="Judul Info" style="margin-bottom: 0;">
                                         </div>
                                         
                                         <div id="text_editor_group_$index" style="${if (item.type == "image") "display:none;" else ""}">
@@ -438,7 +450,7 @@ class AdminServer private constructor(
                                             <div style="display: flex; flex-direction: column; gap: 8px;">
                                                 <input type="file" name="info_file_$index" id="info_file_$index" accept="image/*" onchange="handleInfoFileSelect(event, $index)" style="font-size: 12px;">
                                                 <div style="display: flex; gap: 8px;">
-                                                    <input id="image_url_$index" value="${if (item.type == "image") item.content else ""}" placeholder="Atau masukkan URL: https://example.com/poster.jpg" style="margin-bottom: 0; flex: 1;">
+                                                    <input id="image_url_$index" value="${if (item.type == "image") safeContent else ""}" placeholder="Atau masukkan URL: https://example.com/poster.jpg" style="margin-bottom: 0; flex: 1;">
                                                     <button type="button" onclick="previewInfo($index)" style="margin:0; padding: 0 15px; width: auto; background: #2196f3;">Preview</button>
                                                 </div>
                                             </div>
@@ -453,11 +465,14 @@ class AdminServer private constructor(
 
                                         <input type="hidden" name="info_content_$index" id="content_$index" value="">
                                         <input type="hidden" name="info_real_type_$index" id="real_type_$index" value="${item.type}">
+                                        <input type="hidden" name="info_index" value="$index"> <!-- Marker for processing -->
                                     </div>
                                     """
-                                }
+                                }.joinToString("\n")
                             }
                         </div>
+                        
+                        <button type="button" onclick="addInfoItem()" style="background: #e3f2fd; color: #1565c0; border: 1px dashed #1565c0; margin-top: 10px;">+ Tambah Info Baru</button>
                     </div>
 
 
@@ -511,9 +526,10 @@ class AdminServer private constructor(
                 }
                 
                 // Quill Initialization
-                const editors = [];
-                [0, 1, 2].forEach(index => {
-                    const quill = new Quill('#editor_' + index, {
+                const editors = {};
+                
+                function initQuill(index, content) {
+                     const quill = new Quill('#editor_' + index, {
                         theme: 'snow',
                         modules: {
                             toolbar: [
@@ -526,18 +542,103 @@ class AdminServer private constructor(
                             ]
                         }
                     });
+                    if (content) quill.root.innerHTML = content;
                     editors[index] = quill;
-                });
+                }
+
+                // Init existing editors
+                ${config.infoItems.indices.joinToString("\n") { "initQuill($it, '');" } }
+                
+                // --- DYNAMIC ITEMS LOGIC ---
+                let nextIndex = ${config.infoItems.size};
+                
+                function addInfoItem() {
+                    const container = document.getElementById('infoItemsContainer');
+                    const index = nextIndex++;
+                    
+                    const html = `
+                        <div class="info-item" id="info_item_${'$'}{index}" style="margin-bottom: 20px; padding: 15px; background: #f9f9f9; border-radius: 12px; border: 1px solid #eee; position: relative;">
+                             <button type="button" onclick="removeInfoItem(${'$'}{index})" style="position: absolute; top: 10px; right: 10px; background: #ffebee; color: #c62828; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; width: auto; box-shadow: none;">hapus</button>
+                             
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <label style="color:#1b5e20; font-weight: 800; font-size: 16px;">Info #${'$'}{index + 1} (Baru)</label>
+                                <div style="background: #eee; padding: 4px; border-radius: 8px; display: flex; gap: 4px; margin-right: 50px;">
+                                    <label style="font-size: 12px; cursor: pointer; padding: 4px 10px; border-radius: 6px; display: flex; align-items: center;">
+                                        <input type="radio" name="info_type_${'$'}{index}" value="text" checked onchange="updateInfoUI(${'$'}{index})" style="margin-right: 5px;"> Teks Kaya
+                                    </label>
+                                    <label style="font-size: 12px; cursor: pointer; padding: 4px 10px; border-radius: 6px; display: flex; align-items: center;">
+                                        <input type="radio" name="info_type_${'$'}{index}" value="image" onchange="updateInfoUI(${'$'}{index})" style="margin-right: 5px;"> Poster (Full)
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div id="title_group_${'$'}{index}" style="margin-bottom: 10px;">
+                                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Judul Info</label>
+                                <input name="info_title_${'$'}{index}" placeholder="Judul Info" style="margin-bottom: 0;">
+                            </div>
+                            
+                            <div id="text_editor_group_${'$'}{index}">
+                                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Isi Konten (Rich Text)</label>
+                                <div id="editor_${'$'}{index}" class="editor-container"></div>
+                            </div>
+
+                            <div id="image_url_group_${'$'}{index}" style="display:none;">
+                                <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Poster Gambar (Upload / URL)</label>
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <input type="file" name="info_file_${'$'}{index}" id="info_file_${'$'}{index}" accept="image/*" onchange="handleInfoFileSelect(event, ${'$'}{index})" style="font-size: 12px;">
+                                    <div style="display: flex; gap: 8px;">
+                                        <input id="image_url_${'$'}{index}" placeholder="Atau masukkan URL: https://example.com/poster.jpg" style="margin-bottom: 0; flex: 1;">
+                                        <button type="button" onclick="previewInfo(${'$'}{index})" style="margin:0; padding: 0 15px; width: auto; background: #2196f3;">Preview</button>
+                                    </div>
+                                </div>
+                                <p style="font-size: 10px; color: #888; margin-top: 4px;">*Pilih file untuk upload poster baru atau masukkan URL gambar.</p>
+                            </div>
+                            
+                            <div id="preview_area_${'$'}{index}" style="margin-top: 10px; display: none; padding: 10px; background: #eee; border-radius: 8px; text-align: center;">
+                                <img id="preview_img_${'$'}{index}" src="" style="max-width: 100%; max-height: 200px; border-radius: 4px; display: none;">
+                            </div>
+
+                            <input type="hidden" name="info_content_${'$'}{index}" id="content_${'$'}{index}" value="">
+                            <input type="hidden" name="info_real_type_${'$'}{index}" id="real_type_${'$'}{index}" value="text">
+                            <input type="hidden" name="info_index" value="${'$'}{index}">
+                        </div>
+                    `;
+                    
+                    // Append HTML safely
+                    const div = document.createElement('div');
+                    div.innerHTML = html;
+                    container.appendChild(div.firstElementChild);
+                    
+                    // Init Quill for new item
+                    initQuill(index, '');
+                }
+
+                function removeInfoItem(index) {
+                    if (confirm('Hapus info ini?')) {
+                        const el = document.getElementById('info_item_' + index);
+                        if (el) el.remove();
+                        // Note: We don't remove from `editors` object to avoid index collision, just let it be.
+                        // The form submission logic only checks for existing `info_index` inputs.
+                    }
+                }
 
                 document.getElementById('mainForm').onsubmit = function() {
-                    [0, 1, 2].forEach(index => {
-                        const type = document.querySelector('input[name="info_type_' + index + '"]:checked').value;
+                    // Collect all visible indices
+                    const indices = Array.from(document.querySelectorAll('input[name="info_index"]')).map(el => el.value);
+                    
+                    indices.forEach(index => {
+                        const typeInput = document.querySelector('input[name="info_type_' + index + '"]:checked');
+                        if (!typeInput) return; // Should not happen
+                        
+                        const type = typeInput.value;
                         if (type === 'image') {
                             const raw = document.getElementById('image_url_' + index).value;
                             document.getElementById('content_' + index).value = extractImageUrl(raw);
                         } else {
-                            const html = editors[index].root.innerHTML;
-                            document.getElementById('content_' + index).value = html === '<p><br></p>' ? '' : html;
+                            if (editors[index]) {
+                                const html = editors[index].root.innerHTML;
+                                document.getElementById('content_' + index).value = html === '<p><br></p>' ? '' : html;
+                            }
                         }
                         document.getElementById('real_type_' + index).value = type;
                     });
@@ -748,29 +849,35 @@ class AdminServer private constructor(
                 infoDisplayInterval = p["info_interval"]?.first()?.toIntOrNull() ?: oldConfig.infoDisplayInterval,
                 infoDisplayDuration = p["info_duration"]?.first()?.toIntOrNull() ?: oldConfig.infoDisplayDuration,
                 isTimeMaster = p["is_time_master"]?.firstOrNull() != null, // Checkbox sends value if checked, nothing if unchecked
-                infoItems = (0..2).map { index ->
-                    val title = p["info_title_$index"]?.first()?.trim() ?: ""
-                    var content = p["info_content_$index"]?.first()?.trim() ?: ""
-                    val type = p["info_real_type_$index"]?.first()?.trim() ?: "text"
-                    
-                    // Handle info image upload
-                    if (type == "image" && files.containsKey("info_file_$index")) {
-                        val tempPath = files["info_file_$index"]
-                        if (!tempPath.isNullOrEmpty()) {
-                            val tempFile = File(tempPath)
-                            if (tempFile.exists()) {
-                                compressAndSaveImage(tempFile)?.let {
-                                    content = it
+                infoItems = p["info_index"].orEmpty().map { strIndex ->
+                    val index = strIndex.toIntOrNull()
+                    if (index != null) {
+                        val title = p["info_title_$index"]?.first()?.trim() ?: ""
+                        var content = p["info_content_$index"]?.first()?.trim() ?: ""
+                        val type = p["info_real_type_$index"]?.first()?.trim() ?: "text"
+                        
+                        // Handle info image upload
+                        if (type == "image" && files.containsKey("info_file_$index")) {
+                            val tempPath = files["info_file_$index"]
+                            if (!tempPath.isNullOrEmpty()) {
+                                val tempFile = File(tempPath)
+                                if (tempFile.exists()) {
+                                    compressAndSaveImage(tempFile)?.let {
+                                        content = it
+                                    }
                                 }
                             }
                         }
-                    }
-                    
-                    // Always save the item, even if empty (preserves structure)
-                    InfoItem(title, content, type)
-                },
+                        
+                        // Only save non-empty items (or title non-empty) to keep DB clean
+                        if (title.isNotEmpty() || content.isNotEmpty()) {
+                            InfoItem(title, content, type)
+                        } else null
+                    } else null
+                }.filterNotNull(),
                 isActivated = pIsActivated, // ✅ PASTIIN GAK RESET
                 deviceId = pDeviceId,      // ✅ PASTIIN GAK RESET
+                enableTarhim = p["enable_tarhim"]?.firstOrNull() != null,
                 lastUpdated = SimpleDateFormat("d MMM yyyy HH:mm", Locale.forLanguageTag("id")).format(Date())
             )
 
@@ -891,6 +998,7 @@ class AdminServer private constructor(
                 hadithDisplayDuration = jsonObj.optInt("hadithDisplayDuration", oldConfig.hadithDisplayDuration),
                 infoDisplayInterval = jsonObj.optInt("infoDisplayInterval", oldConfig.infoDisplayInterval),
                 infoDisplayDuration = jsonObj.optInt("infoDisplayDuration", oldConfig.infoDisplayDuration),
+                enableTarhim = jsonObj.optBoolean("enableTarhim", oldConfig.enableTarhim),
                 lastUpdated = jsonObj.optString("lastUpdated", oldConfig.lastUpdated),
                 
                 // Parse InfoItems
@@ -900,7 +1008,11 @@ class AdminServer private constructor(
                     if (arr != null) {
                         for(i in 0 until arr.length()) {
                             val item = arr.getJSONObject(i)
-                            list.add(InfoItem(item.optString("title"), item.optString("content")))
+                            list.add(InfoItem(
+                                title = item.optString("title"),
+                                content = item.optString("content"),
+                                type = item.optString("type", "text")
+                            ))
                         }
                     }
                     list
@@ -1088,12 +1200,14 @@ class AdminServer private constructor(
                     put("hadithDisplayDuration", config.hadithDisplayDuration)
                     put("infoDisplayInterval", config.infoDisplayInterval)
                     put("infoDisplayDuration", config.infoDisplayDuration)
+                    put("enableTarhim", config.enableTarhim)
                     put("lastUpdated", config.lastUpdated)
                     put("infoItems", JSONArray().apply {
                         config.infoItems.forEach { 
                             put(JSONObject().apply {
                                 put("title", it.title)
                                 put("content", it.content)
+                                put("type", it.type)
                             })
                         }
                     })

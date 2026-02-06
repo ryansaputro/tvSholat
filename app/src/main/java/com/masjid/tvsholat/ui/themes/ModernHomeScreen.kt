@@ -99,8 +99,8 @@ fun ModernHomeScreen(
                         
                         Box(
                             modifier = Modifier
-                                .background(Color(0xFF2E7D32).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-                                .border(2.dp, Color(0xFF81C784), RoundedCornerShape(12.dp))
+                                .background(Color(0xFF1976D2).copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                .border(2.dp, Color(0xFF42A5F5), RoundedCornerShape(12.dp))
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Text(

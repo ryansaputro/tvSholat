@@ -31,8 +31,8 @@ fun TreasuryScreen(config: MasjidConfig) {
         modifier = Modifier
             .fillMaxSize()
             .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF1B5E20), Color(0xFF0D2D10))
+                Brush.radialGradient(
+                    colors = listOf(Color(0xFF311B92), Color(0xFF000000))
                 )
             ),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -44,13 +44,21 @@ fun TreasuryScreen(config: MasjidConfig) {
                 .weight(1f)
                 .padding(24.dp)
         ) {
-            Text(
-                text = "LAPORAN KEUANGAN",
-                color = Color(0xFFFFD54F),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Light,
-                letterSpacing = 4.sp
-            )
+            // Header Badge
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .border(1.dp, Color(0xFFFFD54F), RoundedCornerShape(50))
+                    .padding(horizontal = 24.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = "LAPORAN KEUANGAN",
+                    color = Color(0xFFFFD54F),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp
+                )
+            }
             
             Spacer(modifier = Modifier.height(8.dp))
             
@@ -64,26 +72,27 @@ fun TreasuryScreen(config: MasjidConfig) {
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            // Balance Card
+            // Balance Card (Glassmorphism)
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color.White.copy(alpha = 0.1f))
-                    .padding(horizontal = 32.dp, vertical = 12.dp),
+                    .border(1.dp, Color(0xFFFFD54F).copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+                    .background(Color.White.copy(alpha = 0.05f))
+                    .padding(horizontal = 30.dp, vertical = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = config.treasuryDescription.uppercase(),
-                        color = Color.LightGray,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
+                        color = Color(0xFFA5D6A7),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Rp ${config.treasuryBalance}",
                         color = Color.White,
-                        fontSize = 32.sp,
+                        fontSize = 48.sp,
                         fontWeight = FontWeight.Black
                     )
                 }
@@ -136,10 +145,10 @@ fun TreasuryScreen(config: MasjidConfig) {
                         Text(
                             text = "Syukran jazakumullah khairan katsiran atas infaq/shadaqah Bapak/Ibu sekalian.\nSemoga menjadi amal jariyah yang berlipat ganda.",
                             color = Color(0xFFA5D6A7),
-                            fontSize = 17.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
                             textAlign = TextAlign.Start,
-                            lineHeight = 26.sp
+                            lineHeight = 22.sp
                         )
                     }
                     
@@ -148,7 +157,7 @@ fun TreasuryScreen(config: MasjidConfig) {
                         // Right Column: QRIS Template
                         QrisTemplate(
                             merchantName = config.name,
-                            nmid = "ID0309494049908", // Reference NMID or dynamic if needed
+                            nmid = "ID0309494049908", 
                             content = config.treasuryQrisData, 
                             qrResolution = 400
                         )
@@ -176,7 +185,7 @@ fun TreasuryScreen(config: MasjidConfig) {
 fun QrisTemplate(merchantName: String, nmid: String, content: String, qrResolution: Int) {
     Box(
         modifier = Modifier
-            .width(200.dp) 
+            .width(160.dp) 
             .clip(RoundedCornerShape(12.dp))
             .background(Color.White)
             .padding(bottom = 0.dp)
@@ -256,14 +265,14 @@ fun QrisTemplate(merchantName: String, nmid: String, content: String, qrResoluti
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Merchant Name (Dynamic)
+            // Merchant Name (Hardcoded or Dynamic)
             Text(
                 text = merchantName,
                 color = Color.Black,
-                fontSize = 12.sp,
+                fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 8.dp)
+                modifier = Modifier.padding(horizontal = 4.dp)
             )
             
             Spacer(modifier = Modifier.height(4.dp))

@@ -46,8 +46,8 @@ fun SimpleHomeScreen(
                     val countdown = String.format("%02d:%02d:%02d", h, m, s)
                     
                     Text(
-                        text = "Menuju ${it.name}   - $countdown",
-                        color = Color(0xFFFFD54F),
+                        text = "MENUJU ${it.name}   - $countdown",
+                        color = Color(0xFF03A9F4), // Light Blue/Cyan distinct from Gold
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )

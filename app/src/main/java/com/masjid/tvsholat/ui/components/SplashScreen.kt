@@ -3,6 +3,7 @@ package com.masjid.tvsholat.ui.components
 import androidx.compose.animation.core.*
 import com.masjid.tvsholat.ui.theme.*
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -18,11 +19,23 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SplashScreen(onFinished: () -> Unit) {
-    // Animation States
+    val fullTextMain = "MARS"
+    val fullTextSub = "DEVELOPER"
+    var displayedTextMain by remember { mutableStateOf("") }
+    var displayedTextSub by remember { mutableStateOf("") }
+    var showCursor by remember { mutableStateOf(true) }
     val scale = remember { Animatable(0.5f) }
     val alpha = remember { Animatable(0f) }
     
     LaunchedEffect(Unit) {
+        // Blinking cursor logic
+        launch {
+            while(true) {
+                delay(500)
+                showCursor = !showCursor
+            }
+        }
+
         // Parallel animations: Scale up and Fade in
         launch {
             scale.animateTo(
@@ -36,12 +49,26 @@ fun SplashScreen(onFinished: () -> Unit) {
         launch {
             alpha.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(1500, easing = LinearOutSlowInEasing)
+                animationSpec = tween(1000, easing = LinearOutSlowInEasing)
             )
         }
         
+        // Typewriter Effect for MARS
+        fullTextMain.forEachIndexed { index, _ ->
+            displayedTextMain = fullTextMain.substring(0, index + 1)
+            delay(150)
+        }
+        
+        delay(300)
+        
+        // Typewriter Effect for DEVELOPER
+        fullTextSub.forEachIndexed { index, _ ->
+            displayedTextSub = fullTextSub.substring(0, index + 1)
+            delay(100)
+        }
+
         // Hold for a moment
-        delay(3000)
+        delay(2000)
         
         // Fade out before finishing
         alpha.animateTo(0f, tween(800))
@@ -51,7 +78,11 @@ fun SplashScreen(onFinished: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DeepGreen), // Deep Green Mosque Theme
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(Color(0xFF311B92), Color(0xFF000000))
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -63,14 +94,14 @@ fun SplashScreen(onFinished: () -> Unit) {
             }
         ) {
             Text(
-                text = "MARS",
+                text = displayedTextMain + (if (displayedTextSub.isEmpty() && showCursor) "|" else ""),
                 color = Color.White,
                 fontSize = 80.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 12.sp
             )
             Text(
-                text = "DEVELOPER",
+                text = displayedTextSub + (if (displayedTextSub.isNotEmpty() && showCursor) "|" else ""),
                 color = Gold,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,

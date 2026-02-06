@@ -22,9 +22,12 @@ import com.masjid.tvsholat.ui.components.IqomahScreen
 import com.masjid.tvsholat.ui.components.ScreenBackground
 import com.masjid.tvsholat.ui.components.TreasuryScreen
 import com.masjid.tvsholat.ui.components.HadithScreen
+import com.masjid.tvsholat.ui.components.TarhimScreen
 import com.masjid.tvsholat.ui.themes.*
 import kotlinx.coroutines.delay
 import java.util.*
+import com.masjid.tvsholat.utils.HijriCalendar
+import com.masjid.tvsholat.utils.IslamicEvent
 
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -130,8 +133,20 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
         prayer.name != "IMSAK" && prayer.name != "TERBIT"
     }
 
+    // 🔥 LOGIC TARHIM: Tampil saat Imsak (jika diaktifkan)
+    val isTarhimPeriod = config.enableTarhim && prayers.any { prayer ->
+        if (prayer.name == "IMSAK") {
+            val subuh = prayers.find { it.name == "SUBUH" }
+            if (subuh != null) {
+                // Tepat dari waktu Imsak sampai sebelum waktu Subuh
+                now.time in prayer.date.time until subuh.date.time
+            } else false
+        } else false
+    }
+
     // Flag untuk menentukan apakah boleh menampilkan konten rotasi (Hadits/Kas/Info)
-    val canShowRotation = !isPrayerEventActive && !isNearAdzan
+    // Blokir rotasi jika: sedang Adzan/Iqomah/Sholat, sedang dekat Adzan, atau sedang masa Tarhim
+    val canShowRotation = !isPrayerEventActive && !isNearAdzan && !isTarhimPeriod
 
     // 🔥 LOGIC TREASURY: Tampil setiap interval (misal tiap 5 menit)
     val isTreasuryPeriod = canShowRotation &&
@@ -148,7 +163,9 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
     // 🔥 LOGIC INFO BOARD: Tampil setiap interval
     val currentSecond = (now.time / 1000 % 60)
     val infoItemCount = if (config.infoItems.isNotEmpty()) config.infoItems.size else 1
-    val totalInfoDuration = (config.infoDisplayDuration * infoItemCount).toLong()
+    // 🔥 FIX: Duration is TOTAL time for all items combined, not per item
+    // User wants: "kalo diset 15 detik tampilnya ini dibagi 3 aja bro"
+    val totalInfoDuration = config.infoDisplayDuration.toLong()
     val infoEndSecond = 45L + totalInfoDuration
     
     val isInfoPeriod = if (canShowRotation && config.infoDisplayInterval > 0) {
@@ -164,6 +181,36 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
     } else {
         false
     }
+
+    // 🔥 LOGIC ISLAMIC EVENT (H-1 & Hari H)
+    // Cek apakah hari ini atau besok ada event penting
+    val todayEvent = remember(todayKey) { HijriCalendar.getEvent(now) }
+    val upcomingEvent = remember(todayKey) { HijriCalendar.getUpcomingEvent(now) }
+    
+    // Tampilkan event jika ada. Durasi: 15 detik per putaran
+    // Prioritas: Hari H > H-1
+    val activeEvent = todayEvent ?: upcomingEvent
+    val isEventTomorrow = (todayEvent == null && upcomingEvent != null)
+    
+    val isEventPeriod = canShowRotation && activeEvent != null &&
+                        (now.time / 1000 % 60) in 15L until 30L // Tampil di detik 15-30 (barengan/gantian sama Hadits?)
+    // Note: To make it clean, let's slot it in.
+    // Treasury: 0-15s (if enabled)
+    // Hadith: 30-50s
+    // Info: 45s+
+    // Let's explicitly schedule it.
+    
+    // REVISED SCHEDULE if Event exists:
+    // Treasury: 0-10s
+    // Event: 10-25s
+    // Hadith: 25-40s
+    // Info: 40s+
+    
+    // Or just simple override logic for now to ensure it appears without breaking existing logic too much.
+    // Let's use a dedicated slot if event exists.
+    val showEventScreen = canShowRotation && activeEvent != null && 
+                          (now.time / 1000 / 60) % 2 == 0L && // Every even minute
+                          (now.time / 1000 % 60) in 0L until 20L // First 20 seconds
 
     ScreenBackground(
         backgroundUrl = config.backgroundUrl,
@@ -198,6 +245,17 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
                     modifier = Modifier.align(Alignment.BottomCenter).padding(20.dp)
                 )
             }
+        } else if (isTarhimPeriod) {
+            // 🔥 SHOLAWAT TARHIM (Saat Imsak)
+            TarhimScreen(config = config)
+        } else if (showEventScreen && activeEvent != null) {
+            // 🔥 PERINGATAN HARI BESAR ISLAM (Prioritas Tinggi)
+            com.masjid.tvsholat.ui.components.IslamicEventScreen(
+                config = config,
+                event = activeEvent,
+                isTomorrow = isEventTomorrow,
+                now = now
+            )
         } else if (isTreasuryPeriod) {
             // 🔥 LAPORAN KAS
             TreasuryScreen(config = config)
@@ -206,7 +264,7 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
             HadithScreen(config = config, now = now)
         } else if (isInfoPeriod && config.infoItems.isNotEmpty()) {
             // 🔥 PAPAN INFORMASI
-            com.masjid.tvsholat.ui.components.InfoScreen(config = config)
+            com.masjid.tvsholat.ui.components.InfoScreen(config = config, now = now)
         } else {
             // 🔥 PILIH TEMA DISINI
             when (config.themeName) {

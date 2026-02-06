@@ -153,12 +153,12 @@ fun ElegantHomeScreen(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(50.dp))
-                            .background(Color.White.copy(alpha = 0.15f))
-                            .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(50.dp))
+                            .background(Color(0xFF0288D1).copy(alpha = 0.3f))
+                            .border(1.dp, Color(0xFF03A9F4), RoundedCornerShape(50.dp))
                             .padding(horizontal = 16.dp, vertical = 5.dp)
                     ) {
                         Text(
-                            text = "Menuju ${it.name}: ${String.format("%02d:%02d:%02d", h, m, s)}",
+                            text = "MENUJU ${it.name}: ${String.format("%02d:%02d:%02d", h, m, s)}",
                             color = Color.White,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.ExtraBold

@@ -4,6 +4,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -23,9 +24,13 @@ import kotlinx.coroutines.delay
 import coil.compose.SubcomposeAsyncImage
 import androidx.compose.ui.layout.ContentScale
 
+import java.util.Date
+import java.text.SimpleDateFormat
+import java.util.Locale
+
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun InfoScreen(config: MasjidConfig) {
+fun InfoScreen(config: MasjidConfig, now: Date) {
     // Filter out empty items to prevent rendering issues
     val items = config.infoItems.filter { it.content.isNotEmpty() }
     var currentIndex by remember { mutableIntStateOf(0) }
@@ -35,11 +40,20 @@ fun InfoScreen(config: MasjidConfig) {
         currentIndex = 0
     }
 
+    // Calculate duration per item dynamically
+    // If total duration is 15s and 3 items -> 5s per item
+    val durationPerItem = if (items.isNotEmpty() && config.infoDisplayDuration > 0) {
+        val calculated = config.infoDisplayDuration.toLong() / items.size
+        calculated.coerceAtLeast(3L) // Minimum 3 seconds to be readable
+    } else {
+        5L // Default fallback
+    }
+
     // Rotation Loop - use stable keys to avoid restarts during ticker recomposition
     LaunchedEffect(items.size, config.infoDisplayDuration) {
         if (items.isNotEmpty()) {
             while (true) {
-                delay(config.infoDisplayDuration * 1000L)
+                delay(durationPerItem * 1000L)
                 if (items.isNotEmpty()) {
                     currentIndex = (currentIndex + 1) % items.size
                 }
@@ -71,12 +85,15 @@ fun InfoScreen(config: MasjidConfig) {
         } else null
     }
 
+    val backgroundColor = if (isFullscreen) Color.Black else Color.Transparent
+    
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF0D2D10), Color(0xFF1B5E20))
+                if (isFullscreen) Brush.verticalGradient(listOf(Color.Black, Color.Black))
+                else Brush.radialGradient(
+                    colors = listOf(Color(0xFF311B92), Color(0xFF000000))
                 )
             )
     ) {
@@ -86,14 +103,22 @@ fun InfoScreen(config: MasjidConfig) {
         ) {
             if (!isFullscreen) {
                 Spacer(modifier = Modifier.height(32.dp))
-                Text(
-                    text = "INFORMASI MASJID",
-                    color = Color(0xFF90CAF9),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Light,
-                    letterSpacing = 4.sp
-                )
-                Spacer(modifier = Modifier.height(32.dp))
+                // Header Badge (Info Masjid)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(Color(0xFF0288D1)) // Blue for general info
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "INFORMASI MASJID",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
             AnimatedContent(
@@ -110,8 +135,9 @@ fun InfoScreen(config: MasjidConfig) {
                             .fillMaxWidth(0.9f)
                             .fillMaxHeight(0.85f)
                             .clip(RoundedCornerShape(24.dp))
-                            .background(Color.White.copy(alpha = 0.15f))
-                            .padding(24.dp)
+                            .border(1.dp, Color(0xFFFFD54F).copy(alpha = 0.5f), RoundedCornerShape(24.dp))
+                            .background(Color.White.copy(alpha = 0.05f))
+                            .padding(42.dp)
                     },
                     contentAlignment = Alignment.Center
                 ) {
@@ -140,6 +166,30 @@ fun InfoScreen(config: MasjidConfig) {
                                 }
                             }
                         )
+                        
+                        // 🔥 FLOATING CLOCK (Top Right)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.TopEnd
+                        ) {
+                            val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.Black.copy(alpha = 0.6f))
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = timeFormat.format(now),
+                                    color = Color.White,
+                                    fontSize = 32.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 2.sp
+                                )
+                            }
+                        }
                     } else {
                         // WEBVIEW FOR HTML RENDERING (TinyMCE content)
                         AndroidView(
@@ -176,43 +226,54 @@ fun InfoScreen(config: MasjidConfig) {
                                                 padding: 20px;
                                                 overflow-x: hidden;
                                             }
+                                            }
                                             h1, h2, h3 { 
                                                 color: #FFD54F; 
-                                                margin: 16px 0;
-                                                font-weight: 700;
+                                                margin-bottom: 24px;
+                                                font-weight: 900;
+                                                text-transform: uppercase;
+                                                border-bottom: 3px solid #FFD54F;
+                                                padding-bottom: 8px;
+                                                display: inline-block;
                                             }
-                                            h1 { font-size: 2em; }
-                                            h2 { font-size: 1.5em; }
-                                            h3 { font-size: 1.2em; }
+                                            h1 { font-size: 2.2em; }
+                                            h2 { font-size: 1.8em; }
+                                            h3 { font-size: 1.5em; }
                                             p { 
-                                                margin: 12px 0; 
-                                                color: white;
-                                                font-size: 24px;
-                                                line-height: 1.8;
+                                                margin-bottom: 16px; 
+                                                color: #E1F5FE;
+                                                font-size: 22px;
+                                                line-height: 1.5;
+                                                font-weight: 500;
                                             }
                                             strong, b { 
                                                 color: #FFD54F; 
-                                                font-weight: 700;
+                                                font-weight: 900;
                                             }
                                             ul, ol { 
-                                                margin: 12px 0; 
-                                                padding-left: 30px;
+                                                margin: 16px 0; 
+                                                background: rgba(255,255,255,0.05);
+                                                padding: 24px 24px 24px 50px;
+                                                border-radius: 12px;
                                             }
                                             li { 
-                                                margin: 8px 0;
-                                                color: white;
+                                                margin: 12px 0;
+                                                color: #E1F5FE;
+                                                font-size: 24px;
                                             }
                                             img {
                                                 max-width: 100%;
-                                                height: auto;
-                                                border-radius: 12px;
-                                                margin: 16px 0;
+                                                border-radius: 16px;
+                                                margin: 20px 0;
+                                                box-shadow: 0 4px 20px rgba(0,0,0,0.5);
                                             }
                                         </style>
                                     </head>
                                     <body>
-                                        ${if (item.title.isNotEmpty()) "<h1>${item.title}</h1>" else ""}
-                                        ${item.content}
+                                        <div style="display: flex; flex-direction: column; justify-content: center; min-height: 100%;">
+                                            ${if (item.title.isNotEmpty()) "<h1>${item.title}</h1>" else ""}
+                                            ${item.content}
+                                        </div>
                                     </body>
                                     </html>
                                 """.trimIndent()
