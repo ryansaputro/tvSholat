@@ -46,6 +46,10 @@ class MainActivity : ComponentActivity() {
         // 🔥 NYALAIN ADMIN SERVER (Repo pake application context biar awet)
         startAdminServer(repo)
 
+        // 🔥 NYALAIN SYNC SERVICE (Time Master/Slave)
+        val syncIntent = Intent(this, com.masjid.tvsholat.domain.service.TimeSyncService::class.java)
+        startService(syncIntent)
+
         setContent {
             val config by repo.configFlow.collectAsState()
             

@@ -218,6 +218,7 @@ class AdminServer private constructor(
                                 <option value="elegant" ${if (config.themeName == "elegant") "selected" else ""}>✨ Elegant Premium (Big Font)</option>
                                 <option value="classic" ${if (config.themeName == "classic") "selected" else ""}>🕌 Classic Green</option>
                                 <option value="dashboard" ${if (config.themeName == "dashboard") "selected" else ""}>📊 Dashboard Sidebar</option>
+                                <option value="grand" ${if (config.themeName == "grand") "selected" else ""}>👑 Grand Premium (Big & Clear)</option>
                             </select>
                         </div>
                     </div>
@@ -298,9 +299,19 @@ class AdminServer private constructor(
                                 <input name="time_offset" type="number" value="${config.timeOffsetMinutes}">
                             </div>
                             <div class="form-group">
+                            <div class="form-group">
                                 <label>Koreksi Tanggal (Hari)</label>
                                 <input name="date_offset" type="number" value="${config.dateOffsetDays}">
                             </div>
+                        </div>
+                        <div style="margin-top: 15px; border-top: 1px dashed #eee; padding-top: 15px;">
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="checkbox" name="is_time_master" style="width: auto; margin-right: 10px;"value="true" ${if (config.isTimeMaster) "checked" else ""}>
+                                <div>
+                                    <span style="font-weight: 600; display: block;">Jadikan Pusat Waktu (Master)</span>
+                                    <span style="font-size: 11px; color: #666; font-weight: normal;">Centang jika TV ini adalah acuan waktu untuk TV lain (Biar detik sinkron).</span>
+                                </div>
+                            </label>
                         </div>
                     </div>
 
@@ -736,6 +747,7 @@ class AdminServer private constructor(
                 hadithDisplayDuration = p["hadith_duration"]?.first()?.toIntOrNull() ?: oldConfig.hadithDisplayDuration,
                 infoDisplayInterval = p["info_interval"]?.first()?.toIntOrNull() ?: oldConfig.infoDisplayInterval,
                 infoDisplayDuration = p["info_duration"]?.first()?.toIntOrNull() ?: oldConfig.infoDisplayDuration,
+                isTimeMaster = p["is_time_master"]?.firstOrNull() != null, // Checkbox sends value if checked, nothing if unchecked
                 infoItems = (0..2).map { index ->
                     val title = p["info_title_$index"]?.first()?.trim() ?: ""
                     var content = p["info_content_$index"]?.first()?.trim() ?: ""

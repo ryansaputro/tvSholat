@@ -36,16 +36,14 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
     
     // Function to get "now" with manual offset applied
     fun getAdjustedNow(offsetMinutes: Int): Date {
-        val actualNow = Date()
-        return if (offsetMinutes == 0) actualNow 
-        else Date(actualNow.time + (offsetMinutes * 60 * 1000L))
+        return com.masjid.tvsholat.data.TimeRepository.getCurrentTime(offsetMinutes)
     }
 
     var now by remember { mutableStateOf(getAdjustedNow(config.timeOffsetMinutes)) }
 
     LaunchedEffect(config.timeOffsetMinutes) {
         while (true) {
-            delay(1000)
+            delay(100) // Update faster to reflect smooth seconds if needed, or stick to 1s
             now = getAdjustedNow(config.timeOffsetMinutes)
         }
     }
@@ -216,6 +214,7 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
                 "elegant" -> ElegantHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
                 "classic" -> ClassicHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
                 "dashboard" -> DashboardHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
+                "grand" -> GrandHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
                 else -> SimpleHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
             }
         }

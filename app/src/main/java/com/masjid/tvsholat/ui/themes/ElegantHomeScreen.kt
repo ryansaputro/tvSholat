@@ -62,7 +62,7 @@ fun ElegantHomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(32.dp),
+                .padding(start = 32.dp, top = 32.dp, end = 32.dp, bottom = 50.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // TOP SECTION: Header Info
@@ -211,10 +211,12 @@ fun ElegantHomeScreen(
                 }
             }
             
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Running Text at the very bottom
-            RunningText(text = config.runningText)
         }
+
+        // Running Text at the very bottom
+        RunningText(
+            text = config.runningText,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }

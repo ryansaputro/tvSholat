@@ -92,7 +92,7 @@ fun TreasuryScreen(config: MasjidConfig) {
             Spacer(modifier = Modifier.height(24.dp))
             
             // Rekening & QRIS Section
-            if (config.treasuryAccountInfo.isNotEmpty() || config.treasuryQrisData.isNotEmpty()) {
+            if (config.treasuryAccountInfo.isNotBlank() || config.treasuryQrisData.isNotBlank()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(0.9f),
                     horizontalArrangement = Arrangement.Center,
@@ -103,7 +103,7 @@ fun TreasuryScreen(config: MasjidConfig) {
                         modifier = Modifier.weight(1f),
                         horizontalAlignment = Alignment.Start
                     ) {
-                        if (config.treasuryAccountInfo.isNotEmpty()) {
+                        if (config.treasuryAccountInfo.isNotBlank()) {
                             Text(
                                 text = "INFORMASI TRANSFER :",
                                 color = Color(0xFFFFD54F),
@@ -143,14 +143,14 @@ fun TreasuryScreen(config: MasjidConfig) {
                         )
                     }
                     
-                    if (config.treasuryQrisData.isNotEmpty()) {
+                    if (config.treasuryQrisData.isNotBlank()) {
                         Spacer(modifier = Modifier.width(32.dp))
                         // Right Column: QRIS Template
                         QrisTemplate(
                             merchantName = config.name,
                             nmid = "ID0309494049908", // Reference NMID or dynamic if needed
                             content = config.treasuryQrisData, 
-                            qrResolution = 150  // Reduced to prevent bottom cutoff
+                            qrResolution = 400
                         )
                     }
                 }
@@ -176,7 +176,7 @@ fun TreasuryScreen(config: MasjidConfig) {
 fun QrisTemplate(merchantName: String, nmid: String, content: String, qrResolution: Int) {
     Box(
         modifier = Modifier
-            .width(100.dp) // Further reduced to 100dp to prevent cutoff
+            .width(200.dp) 
             .clip(RoundedCornerShape(12.dp))
             .background(Color.White)
             .padding(bottom = 0.dp)
@@ -207,7 +207,7 @@ fun QrisTemplate(merchantName: String, nmid: String, content: String, qrResoluti
         }
 
         Column(
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp), // Reduced padding
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp), 
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Header Row (Add padding here manually)
@@ -221,22 +221,22 @@ fun QrisTemplate(merchantName: String, nmid: String, content: String, qrResoluti
                     Text(
                         text = "QRIS",
                         color = Color.Black,
-                        fontSize = 12.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = (-0.5).sp
                     )
                     Text(
                         text = "QR Code Standar\nPembayaran Nasional",
                         color = Color.Black,
-                        fontSize = 4.sp,
+                        fontSize = 6.sp,
                         fontWeight = FontWeight.Bold,
-                        lineHeight = 5.sp
+                        lineHeight = 7.sp
                     )
                 }
 
                 // GPN Logo Placeholder
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(modifier = Modifier.size(14.dp)) {
+                    Box(modifier = Modifier.size(20.dp)) {
                         Canvas(modifier = Modifier.fillMaxSize()) {
                             // Simple Red Eagle shape
                             val eagle = Path().apply {
@@ -250,17 +250,17 @@ fun QrisTemplate(merchantName: String, nmid: String, content: String, qrResoluti
                             drawPath(eagle, Color(0xFFD32F2F))
                         }
                     }
-                    Text("GPN", color = Color(0xFF0D47A1), fontSize = 6.sp, fontWeight = FontWeight.Black)
+                    Text("GPN", color = Color(0xFF0D47A1), fontSize = 8.sp, fontWeight = FontWeight.Black)
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Merchant Name (Clean & Simple)
+            // Merchant Name (Dynamic)
             Text(
-                text = "MUSHOLA AL BADR",
+                text = merchantName,
                 color = Color.Black,
-                fontSize = 10.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 8.dp)
@@ -271,13 +271,13 @@ fun QrisTemplate(merchantName: String, nmid: String, content: String, qrResoluti
             // QR Code Box (NGEPAS - MUST TOUCH EDGES)
             Box(
                 modifier = Modifier
-                    .fillMaxWidth() // Touches edges of 140dp template
+                    .fillMaxWidth() 
                     .aspectRatio(1f)
                     .background(Color.White)
-                    .padding(0.dp) // ZERO PADDING: NGEPAS!
+                    .padding(0.dp) 
             ) {
                 val bitmap = remember(content) {
-                    QrCodeUtils.generateQrBitmap(content, 600)
+                    QrCodeUtils.generateQrBitmap(content, qrResolution)
                 }
                 bitmap?.let {
                     Image(
@@ -292,9 +292,9 @@ fun QrisTemplate(merchantName: String, nmid: String, content: String, qrResoluti
             
             // Footer (Add padding here)
             Text(
-                text = "Dicetak oleh: Mushola Al Badr",
+                text = "Dicetak oleh: $merchantName",
                 color = Color.DarkGray,
-                fontSize = 5.sp,
+                fontSize = 8.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .align(Alignment.Start)

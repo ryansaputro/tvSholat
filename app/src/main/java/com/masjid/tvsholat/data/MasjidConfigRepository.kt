@@ -84,6 +84,7 @@ class MasjidConfigRepository private constructor(context: Context) {
             }.toString())
             .putString("manual_peers", JSONArray(config.manualPeers).toString())
             .putString("ignored_peers", JSONArray(config.ignoredPeers).toString())
+            .putBoolean("is_time_master", config.isTimeMaster)
             .commit() // 🔥 PAKE COMMIT BIAR SINCRONOUS (Sync ke Disk)
     }
 
@@ -152,7 +153,8 @@ class MasjidConfigRepository private constructor(context: Context) {
                 list
             } catch (e: Exception) {
                 emptyList()
-            }
+            },
+            isTimeMaster = prefs.getBoolean("is_time_master", false)
         )
     }
 }
