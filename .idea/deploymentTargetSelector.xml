@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-02-06T15:17:11.261093447Z">
+        <DropdownSelection timestamp="2026-02-07T15:07:32.164546890Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=/home/mars/.android/avd/Tv_Hisense_32.avd" />
+              <DeviceId pluginId="LocalEmulator" identifier="path=/home/mars/.android/avd/Hisense_32_HD.avd" />
             </handle>
           </Target>
         </DropdownSelection>

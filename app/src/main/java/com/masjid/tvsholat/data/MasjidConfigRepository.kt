@@ -51,10 +51,18 @@ class MasjidConfigRepository private constructor(context: Context) {
             .putFloat("lat", config.latitude.toFloat())
             .putFloat("lng", config.longitude.toFloat())
             .putInt("iqomah", config.iqomahMinutes)
+            .putInt("iqomah_subuh", config.iqomahSubuh)
+            .putInt("iqomah_dzuhur", config.iqomahDzuhur)
+            .putInt("iqomah_ashar", config.iqomahAshar)
+            .putInt("iqomah_maghrib", config.iqomahMaghrib)
+            .putInt("iqomah_isya", config.iqomahIsya)
+            .putInt("iqomah_jumat", config.iqomahJumat)
             .putInt("sholat_duration", config.sholatDurationMinutes)
             .putString("bg_url", config.backgroundUrl)
             .putString("bg_type", config.backgroundType)
             .putString("bg_local_path", config.backgroundLocalPath)
+            .putString("logo_url", config.logoUrl)
+            .putString("logo_local_path", config.logoLocalPath)
             .putString("theme_name", config.themeName)
             .putString("running_text", config.runningText)
             .putInt("time_offset", config.timeOffsetMinutes)
@@ -86,6 +94,8 @@ class MasjidConfigRepository private constructor(context: Context) {
             .putString("ignored_peers", JSONArray(config.ignoredPeers).toString())
             .putBoolean("is_time_master", config.isTimeMaster)
             .putBoolean("enable_tarhim", config.enableTarhim)
+            .putString("tarhim_audio_url", config.tarhimAudioUrl)
+            .putString("tarhim_audio_local_path", config.tarhimAudioLocalPath)
             .commit() // 🔥 PAKE COMMIT BIAR SINCRONOUS (Sync ke Disk)
     }
 
@@ -96,7 +106,15 @@ class MasjidConfigRepository private constructor(context: Context) {
             latitude = prefs.getFloat("lat", -6.321f).toDouble(),
             longitude = prefs.getFloat("lng", 107.022f).toDouble(),
             iqomahMinutes = prefs.getInt("iqomah", 5),
+            iqomahSubuh = prefs.getInt("iqomah_subuh", 10),
+            iqomahDzuhur = prefs.getInt("iqomah_dzuhur", 10),
+            iqomahAshar = prefs.getInt("iqomah_ashar", 10),
+            iqomahMaghrib = prefs.getInt("iqomah_maghrib", 7),
+            iqomahIsya = prefs.getInt("iqomah_isya", 10),
+            iqomahJumat = prefs.getInt("iqomah_jumat", 0),
             backgroundUrl = prefs.getString("bg_url", "") ?: "",
+            logoUrl = prefs.getString("logo_url", "") ?: "",
+            logoLocalPath = prefs.getString("logo_local_path", "") ?: "",
             backgroundType = prefs.getString("bg_type", "url") ?: "url",
             sholatDurationMinutes = prefs.getInt("sholat_duration", 10),
             backgroundLocalPath = prefs.getString("bg_local_path", "") ?: "",
@@ -156,7 +174,9 @@ class MasjidConfigRepository private constructor(context: Context) {
                 emptyList()
             },
             isTimeMaster = prefs.getBoolean("is_time_master", false),
-            enableTarhim = prefs.getBoolean("enable_tarhim", false)
+            enableTarhim = prefs.getBoolean("enable_tarhim", false),
+            tarhimAudioUrl = prefs.getString("tarhim_audio_url", "") ?: "",
+            tarhimAudioLocalPath = prefs.getString("tarhim_audio_local_path", "") ?: ""
         )
     }
 }

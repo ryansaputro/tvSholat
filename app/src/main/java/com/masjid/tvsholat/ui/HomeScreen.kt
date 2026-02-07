@@ -99,21 +99,37 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
         prayer.name != "IMSAK" && prayer.name != "TERBIT"
     }
 
+    // 🔥 HELPER: Get Iqomah Minutes for specific prayer
+    fun getIqomahMinutes(prayerName: String): Int {
+        return when (prayerName) {
+            "SUBUH" -> config.iqomahSubuh
+            "DZUHUR" -> config.iqomahDzuhur
+            "ASHAR" -> config.iqomahAshar
+            "MAGHRIB" -> config.iqomahMaghrib
+            "ISYA" -> config.iqomahIsya
+            "JUM'AT" -> config.iqomahJumat
+            else -> config.iqomahMinutes
+        }
+    }
+
     // 🔥 LOGIC IQOMAH: Jalan seteleh Adzan + Blank beres (setelah 1 menit 30 detik)
     val currentPrayerInIqomah = prayers.firstOrNull { prayer ->
         val prayerStart = prayer.date.time
         val iqomahStart = prayerStart + totalDelayMillis
-        val iqomahEnd = iqomahStart + (config.iqomahMinutes * 60 * 1000)
+        val mins = getIqomahMinutes(prayer.name)
+        val iqomahEnd = iqomahStart + (mins * 60 * 1000)
+        
         now.time in iqomahStart until iqomahEnd && 
         prayer.name != "IMSAK" && prayer.name != "TERBIT" &&
-        prayer.name != "JUM'AT"
+        !(prayer.name == "JUM'AT" && mins <= 0) // Jika Jumat diset 0, lompati iqomah
     }
     
     // 🔥 LOGIC SHOLAT: Tampil setelah Iqomah selesai (Layar Hitam Standby)
     val currentPrayerInSholat = prayers.firstOrNull { prayer ->
         val prayerStart = prayer.date.time
         val iqomahStart = prayerStart + totalDelayMillis
-        val iqomahEnd = iqomahStart + (config.iqomahMinutes * 60 * 1000)
+        val mins = getIqomahMinutes(prayer.name)
+        val iqomahEnd = iqomahStart + (mins * 60 * 1000)
         val sholatEnd = iqomahEnd + (config.sholatDurationMinutes * 60 * 1000)
         
         now.time in iqomahEnd until sholatEnd &&
@@ -227,7 +243,8 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
         } else if (currentPrayerInIqomah != null) {
             val prayerStart = currentPrayerInIqomah.date.time
             val iqomahStart = prayerStart + totalDelayMillis
-            val iqomahEnd = iqomahStart + (config.iqomahMinutes * 60 * 1000)
+            val mins = getIqomahMinutes(currentPrayerInIqomah.name)
+            val iqomahEnd = iqomahStart + (mins * 60 * 1000)
             val remainingMillis = iqomahEnd - now.time
 
             IqomahScreen(
@@ -247,7 +264,8 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
             }
         } else if (isTarhimPeriod) {
             // 🔥 SHOLAWAT TARHIM (Saat Imsak)
-            TarhimScreen(config = config)
+            val subuh = prayers.find { it.name == "SUBUH" }
+            TarhimScreen(config = config, subuhTime = subuh?.date, now = now)
         } else if (showEventScreen && activeEvent != null) {
             // 🔥 PERINGATAN HARI BESAR ISLAM (Prioritas Tinggi)
             com.masjid.tvsholat.ui.components.IslamicEventScreen(
@@ -273,6 +291,7 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
                 "classic" -> ClassicHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
                 "dashboard" -> DashboardHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
                 "grand" -> GrandHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
+                "premium" -> PremiumHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
                 else -> SimpleHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
             }
         }

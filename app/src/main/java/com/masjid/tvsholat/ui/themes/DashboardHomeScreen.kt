@@ -90,23 +90,31 @@ fun DashboardHomeScreen(
                 verticalArrangement = Arrangement.SpaceBetween,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = config.name.uppercase(),
-                        color = Color.White,
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Black,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    com.masjid.tvsholat.ui.components.MasjidLogo(
+                        config = config,
+                        size = 64.dp,
+                        modifier = Modifier.padding(end = 20.dp)
                     )
-                    Text(
-                        text = config.address.uppercase(),
-                        color = Color.LightGray,
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        softWrap = false
-                    )
+                    
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = config.name.uppercase(),
+                            color = Color.White,
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Black,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = config.address.uppercase(),
+                            color = Color.LightGray,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 }
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

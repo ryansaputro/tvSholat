@@ -71,20 +71,28 @@ fun ElegantHomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Column {
-                    Text(
-                        text = config.name.uppercase(),
-                        color = Color.White,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.sp
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    com.masjid.tvsholat.ui.components.MasjidLogo(
+                        config = config,
+                        size = 60.dp,
+                        modifier = Modifier.padding(end = 16.dp)
                     )
-                    Text(
-                        text = config.address,
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                    
+                    Column {
+                        Text(
+                            text = config.name.uppercase(),
+                            color = Color.White,
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            text = config.address,
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
                 
                 // IP & Version (Small & Discreet)

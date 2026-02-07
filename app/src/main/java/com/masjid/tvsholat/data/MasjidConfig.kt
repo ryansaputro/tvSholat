@@ -6,7 +6,15 @@ data class MasjidConfig(
     val latitude: Double,
     val longitude: Double,
     val iqomahMinutes: Int,
+    val iqomahSubuh: Int = 10,
+    val iqomahDzuhur: Int = 10,
+    val iqomahAshar: Int = 10,
+    val iqomahMaghrib: Int = 7,
+    val iqomahIsya: Int = 10,
+    val iqomahJumat: Int = 0,
     val backgroundUrl: String = "",
+    val logoUrl: String = "",
+    val logoLocalPath: String = "",
     val backgroundType: String = "url", // "url" or "upload"
     val backgroundLocalPath: String = "",
     val themeName: String = "simple",
@@ -31,5 +39,7 @@ data class MasjidConfig(
     val manualPeers: List<String> = emptyList(),
     val ignoredPeers: List<String> = emptyList(),
     val isTimeMaster: Boolean = false,
-    val enableTarhim: Boolean = false
+    val enableTarhim: Boolean = false,
+    val tarhimAudioUrl: String = "",
+    val tarhimAudioLocalPath: String = ""
 )

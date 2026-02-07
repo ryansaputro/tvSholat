@@ -1,5 +1,7 @@
 package com.masjid.tvsholat.ui.components
 
+import android.media.MediaPlayer
+import android.net.Uri
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,16 +14,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.masjid.tvsholat.data.MasjidConfig
 import kotlinx.coroutines.delay
+import java.util.Date
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun TarhimScreen(config: MasjidConfig) {
+fun TarhimScreen(
+    config: MasjidConfig,
+    subuhTime: Date?,
+    now: Date
+) {
     val tarhimParts = listOf(
         Pair(
             "الصَّلَاةُ وَالسَّلَامُ عَلَيْكَ ۞ يَا إِمَامَ الْمُجَاهِدِيْنَ ۞ يَا رَسُوْلَ اللهِ ۞ الصَّلَاةُ وَالسَّلَامُ عَلَيْكَ ۞ يَا نَاصِرَ الْهُدَى ۞ يَا خَيْرَ خَلْقِ اللهِ ۞",
@@ -47,6 +55,52 @@ fun TarhimScreen(config: MasjidConfig) {
         while (true) {
             delay(10000) // 10 detik per slide
             currentIndex = (currentIndex + 1) % tarhimParts.size
+        }
+    }
+
+    // --- AUDIO PLAYBACK ---
+    val context = LocalContext.current
+    val audioSource = config.tarhimAudioLocalPath.ifEmpty { config.tarhimAudioUrl }
+
+    if (audioSource.isNotEmpty()) {
+        DisposableEffect(audioSource) {
+            android.util.Log.d("TARHIM_SCREEN", "Starting audio: $audioSource")
+            val mediaPlayer = try {
+                if (audioSource.startsWith("/")) {
+                    val file = java.io.File(audioSource)
+                    if (file.exists()) {
+                        android.util.Log.d("TARHIM_SCREEN", "Playing local file: $audioSource")
+                        MediaPlayer().apply {
+                            setDataSource(audioSource)
+                            prepare()
+                            isLooping = true
+                            start()
+                        }
+                    } else {
+                        android.util.Log.e("TARHIM_SCREEN", "Local audio file not found: $audioSource")
+                        null
+                    }
+                } else {
+                    android.util.Log.d("TARHIM_SCREEN", "Playing remote audio: $audioSource")
+                    MediaPlayer.create(context, Uri.parse(audioSource))?.apply {
+                        isLooping = true
+                        start()
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("TARHIM_SCREEN", "Error playing audio: $audioSource", e)
+                null
+            }
+            
+            onDispose {
+                android.util.Log.d("TARHIM_SCREEN", "Disposing audio")
+                try {
+                    mediaPlayer?.stop()
+                    mediaPlayer?.release()
+                } catch (e: Exception) {
+                    // Ignore errors on release
+                }
+            }
         }
     }
 
@@ -78,6 +132,41 @@ fun TarhimScreen(config: MasjidConfig) {
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 2.sp
                 )
+            }
+
+            // --- COUNTDOWN NEW ---
+            if (subuhTime != null) {
+                val diff = subuhTime.time - now.time
+                if (diff > 0) {
+                    val totalSeconds = diff / 1000
+                    val minutes = totalSeconds / 60
+                    val seconds = totalSeconds % 60
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.Black.copy(alpha = 0.5f))
+                            .border(1.dp, Color(0xFF4CAF50).copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 20.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = "MENUJU AZAN SUBUH: ",
+                            color = Color(0xFFB0BEC5),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = String.format("%02d:%02d", minutes, seconds),
+                            color = Color(0xFFFFD54F),
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(48.dp))

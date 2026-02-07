@@ -94,6 +94,12 @@ fun SimpleHomeScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                com.masjid.tvsholat.ui.components.MasjidLogo(
+                    config = config,
+                    size = 40.dp,
+                    modifier = Modifier.padding(end = 12.dp)
+                )
+
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "${config.name.uppercase()} (v$appVersion)", 

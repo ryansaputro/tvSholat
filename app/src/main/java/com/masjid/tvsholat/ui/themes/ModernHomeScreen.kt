@@ -118,6 +118,12 @@ fun ModernHomeScreen(
                         modifier = Modifier.padding(top = 16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        com.masjid.tvsholat.ui.components.MasjidLogo(
+                            config = config,
+                            size = 50.dp,
+                            modifier = Modifier.padding(end = 12.dp)
+                        )
+
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = config.name.uppercase(), 
@@ -139,7 +145,7 @@ fun ModernHomeScreen(
                                     text = "Admin Updated: ${config.lastUpdated}",
                                     color = Color.Gray.copy(alpha = 0.7f),
                                     fontSize = 10.sp
-                                )
+                               )
                             }
                         }
                         

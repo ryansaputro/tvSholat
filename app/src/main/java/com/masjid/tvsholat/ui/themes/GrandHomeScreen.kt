@@ -82,22 +82,33 @@ fun GrandHomeScreen(
                     verticalAlignment = Alignment.Top
                 ) {
                     // Masjid Identity
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = config.name.uppercase(),
-                            color = Color.White,
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = 2.sp,
-                            lineHeight = 36.sp
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        com.masjid.tvsholat.ui.components.MasjidLogo(
+                            config = config,
+                            size = 80.dp,
+                            modifier = Modifier.padding(end = 24.dp)
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = config.address,
-                            color = Color.LightGray,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                        
+                        Column {
+                            Text(
+                                text = config.name.uppercase(),
+                                color = Color.White,
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 2.sp,
+                                lineHeight = 36.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = config.address,
+                                color = Color.LightGray,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
 
                     // QR & IP Code (Compact)
@@ -237,10 +248,35 @@ fun GrandHomeScreen(
             }
 
             // 3. Running Text (Flush Bottom)
-            RunningText(
-                text = config.runningText,
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
+            Column(
+                modifier = Modifier.align(Alignment.BottomCenter),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Small Dates above marquee
+                Row(
+                    modifier = Modifier.padding(bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = dateFormat.format(now),
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "  •  ",
+                        color = Color.White.copy(alpha = 0.4f),
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = hijriFormatted,
+                        color = Color(0xFFFFD54F).copy(alpha = 0.8f),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                RunningText(text = config.runningText)
+            }
         }
     }
 }

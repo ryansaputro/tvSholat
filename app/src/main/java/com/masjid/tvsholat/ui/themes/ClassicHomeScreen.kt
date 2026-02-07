@@ -63,22 +63,33 @@ fun ClassicHomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = config.name.uppercase(), 
-                        color = Color.White, 
-                        fontSize = 20.sp, 
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        softWrap = false
+                Row(
+                    modifier = Modifier.weight(1.1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    com.masjid.tvsholat.ui.components.MasjidLogo(
+                        config = config,
+                        size = 50.dp,
+                        modifier = Modifier.padding(end = 12.dp)
                     )
-                    Text(
-                        text = config.address.uppercase(), 
-                        color = Color(0xFFA5D6A7), 
-                        fontSize = 13.sp,
-                        maxLines = 1,
-                        softWrap = false
-                    )
+                    
+                    Column {
+                        Text(
+                            text = config.name.uppercase(), 
+                            color = Color.White, 
+                            fontSize = 20.sp, 
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                        Text(
+                            text = config.address.uppercase(), 
+                            color = Color(0xFFA5D6A7), 
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 }
                 
                 Spacer(modifier = Modifier.width(16.dp))

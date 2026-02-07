@@ -59,17 +59,23 @@ class AdminServer private constructor(
         val method = session.method
         val remoteIp = session.remoteIpAddress
         
-        // Log headers untuk debug kenapa popup gak muncul
-        val authHeader = session.headers["authorization"] ?: session.headers["Authorization"]
-        val isSyncRequest = session.headers["x-sync-source"] == "true"
-        
-        // Kalau request sync dari TV lain, bypass auth (karena sesama device internal)
-        // Atau bisa juga tambah simple auth token
-        if (!isSyncRequest) {
-             android.util.Log.d("ADMIN_SERVER", ">>> [${method}] ${uri} from ${remoteIp} | Auth: ${authHeader != null}")
+        // --- 1. BYPASS AUTH FOR SYNC, FILES, & PING ---
+        // These are internal TV-to-TV communications
+        val isSyncRequest = session.headers["x-sync-source"] == "true" || uri == "/sync"
+        val isFileRequest = uri.startsWith("/files/")
+        val isPingRequest = uri == "/ping"
+
+        if (isSyncRequest || isFileRequest || isPingRequest) {
+             return when {
+                 isFileRequest -> serveFile(uri)
+                 uri == "/sync" -> handleSyncRequest(session)
+                 uri == "/ping" -> newFixedLengthResponse(NanoHTTPD.Response.Status.OK, MIME_PLAINTEXT, "PONG")
+                 else -> newFixedLengthResponse(NanoHTTPD.Response.Status.NOT_FOUND, MIME_PLAINTEXT, "404 Not Found")
+             }
         }
 
-        // --- AUTH CHECK ---
+        // --- 2. AUTH CHECK FOR OTHERS (ADMIN PANEL) ---
+        val authHeader = session.headers["authorization"] ?: session.headers["Authorization"]
         val authorized = if (authHeader != null && authHeader.startsWith("Basic ")) {
             try {
                 val base64Credentials = authHeader.substring(6)
@@ -87,18 +93,104 @@ class AdminServer private constructor(
             response.addHeader("WWW-Authenticate", "Basic realm=\"Admin Panel TvSholat\"")
             return response
         }
-        // ------------------
         
+        // --- 3. PROTECTED ENDPOINTS ---
         return when (uri) {
             "/" -> adminPage(session)
             "/save" -> saveConfig(session)
-            "/sync" -> handleSyncRequest(session)
             "/peers" -> handlePeersRequest(session)
             "/peers/manage" -> managePeers(session)
             "/peers/test" -> testPeerConnection(session)
-            "/ping" -> newFixedLengthResponse(NanoHTTPD.Response.Status.OK, MIME_PLAINTEXT, "PONG")
             "/favicon.ico" -> newFixedLengthResponse(NanoHTTPD.Response.Status.NOT_FOUND, MIME_PLAINTEXT, "")
             else -> newFixedLengthResponse(NanoHTTPD.Response.Status.NOT_FOUND, MIME_PLAINTEXT, "404 Not Found")
+        }
+    }
+
+    private fun serveFile(uri: String): NanoHTTPD.Response {
+        return try {
+            // URI format: /files/subfolder/filename.jpg
+            val parts = uri.split("/")
+            if (parts.size < 4) return newFixedLengthResponse(NanoHTTPD.Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Invalid file path")
+            
+            val subFolder = parts[2] // backgrounds, logos, info, or audio
+            val filename = parts[3]
+            
+            val file = File(File(context.filesDir, subFolder), filename)
+            if (!file.exists()) {
+                android.util.Log.e("ADMIN_SERVER", "File not found: ${file.absolutePath}")
+                return newFixedLengthResponse(NanoHTTPD.Response.Status.NOT_FOUND, MIME_PLAINTEXT, "File not found")
+            }
+            
+            val mimeType = when (file.extension.lowercase()) {
+                "jpg", "jpeg" -> "image/jpeg"
+                "png" -> "image/png"
+                "webp" -> "image/webp"
+                "mp3" -> "audio/mpeg"
+                "wav" -> "audio/wav"
+                "ogg" -> "audio/ogg"
+                else -> "application/octet-stream"
+            }
+            
+            newChunkedResponse(NanoHTTPD.Response.Status.OK, mimeType, file.inputStream())
+        } catch (e: Exception) {
+            android.util.Log.e("ADMIN_SERVER", "Error serving file: $uri", e)
+            newFixedLengthResponse(NanoHTTPD.Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Error: ${e.message}")
+        }
+    }
+
+    private fun saveAudioFile(sourceFile: File): String? {
+        return try {
+            val audioDir = File(context.filesDir, "audio")
+            if (!audioDir.exists()) audioDir.mkdirs()
+            
+            val extension = sourceFile.extension.lowercase().ifEmpty { "mp3" }
+            val fileName = "tarhim_${System.currentTimeMillis()}.$extension"
+            val targetFile = File(audioDir, fileName)
+            
+            sourceFile.inputStream().use { input ->
+                targetFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            android.util.Log.d("ADMIN_SERVER", "Audio file saved to: ${targetFile.absolutePath}")
+            targetFile.absolutePath
+        } catch (e: Exception) {
+            android.util.Log.e("ADMIN_SERVER", "Error saving audio file", e)
+            null
+        }
+    }
+
+    private fun downloadFileFromPeer(peerIp: String, subFolder: String, filename: String): String? {
+        return try {
+            val url = java.net.URL("http://$peerIp:9090/files/$subFolder/$filename")
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection.connectTimeout = 5000
+            connection.readTimeout = 10000
+            
+            // Add Basic Auth
+            val auth = "musholakita:mars123!"
+            val encodedAuth = android.util.Base64.encodeToString(auth.toByteArray(), android.util.Base64.NO_WRAP)
+            connection.setRequestProperty("Authorization", "Basic $encodedAuth")
+            
+            if (connection.responseCode == 200) {
+                val targetDir = File(context.filesDir, subFolder)
+                if (!targetDir.exists()) targetDir.mkdirs()
+                
+                val targetFile = File(targetDir, filename)
+                connection.inputStream.use { input ->
+                    FileOutputStream(targetFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                android.util.Log.d("ADMIN_SERVER", "Successfully downloaded $filename from $peerIp")
+                targetFile.absolutePath
+            } else {
+                android.util.Log.e("ADMIN_SERVER", "Failed to download $filename from $peerIp. Code: ${connection.responseCode}")
+                null
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ADMIN_SERVER", "Error downloading $filename from $peerIp", e)
+            null
         }
     }
 
@@ -219,7 +311,38 @@ class AdminServer private constructor(
                                 <option value="classic" ${if (config.themeName == "classic") "selected" else ""}>🕌 Classic Green</option>
                                 <option value="dashboard" ${if (config.themeName == "dashboard") "selected" else ""}>📊 Dashboard Sidebar</option>
                                 <option value="grand" ${if (config.themeName == "grand") "selected" else ""}>👑 Grand Premium (Big & Clear)</option>
+                                <option value="premium" ${if (config.themeName == "premium") "selected" else ""}>💎 Premium Glass (Modern)</option>
                             </select>
+                        </div>
+                        
+                        <div class="form-group" style="margin-top: 20px; border-top: 1px dashed #ddd; padding-top: 15px;">
+                            <label>Logo Masjid</label>
+                            <div style="font-size: 11px; color: #666; margin-bottom: 8px;">Tampil di sebelah nama masjid pada semua tema.</div>
+                            
+                            <div style="display: flex; gap: 15px; align-items: flex-start;">
+                                <div style="flex: 1;">
+                                    <div style="margin-bottom: 8px; display: flex; gap: 15px;">
+                                        <label style="font-weight: 400; font-size: 12px; cursor: pointer; display: flex; align-items: center;">
+                                            <input type="radio" name="logo_src_type" value="url" checked onchange="toggleLogoInput()" style="width: auto; margin-right: 5px;"> URL
+                                        </label>
+                                        <label style="font-weight: 400; font-size: 12px; cursor: pointer; display: flex; align-items: center;">
+                                            <input type="radio" name="logo_src_type" value="upload" onchange="toggleLogoInput()" style="width: auto; margin-right: 5px;"> Upload
+                                        </label>
+                                    </div>
+                                    
+                                    <div id="logoUrlInput">
+                                        <input name="logo_url" id="logoUrlField" value="${config.logoUrl}" placeholder="https://example.com/logo.png" oninput="updateLogoPreview(this.value)" style="font-size: 12px;">
+                                    </div>
+                                    <div id="logoUploadInput" style="display: none;">
+                                        <input type="file" name="logo_file" accept="image/*" onchange="handleLogoFileSelect(event)" style="font-size: 12px;">
+                                    </div>
+                                    <input type="hidden" name="logo_local_path" id="logoLocalPath" value="${config.logoLocalPath}">
+                                </div>
+                                
+                                <div style="width: 80px; height: 80px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background: #f9f9f9; display: flex; align-items: center; justify-content: center;">
+                                    <img id="logoPreview" src="${if (config.logoLocalPath.isNotEmpty()) "file://" + config.logoLocalPath else if (config.logoUrl.isNotEmpty()) config.logoUrl else "https://via.placeholder.com/80?text=Logo"}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -227,15 +350,53 @@ class AdminServer private constructor(
                         <h3>⏱️ Konfigurasi Sholat</h3>
                         <div class="grid">
                             <div class="form-group">
-                                <label>Jeda Iqomah (Menit)</label>
-                                <input type="number" name="iqomah" value="${config.iqomahMinutes}" required>
-                            </div>
-                            <div class="form-group">
                                 <label>Durasi Sholat (Menit)</label>
                                 <input type="number" name="sholat_duration" value="${config.sholatDurationMinutes}" required>
                                 <small style="color: #666; font-size: 11px;">Layar hitam setelah iqomah.</small>
                             </div>
                         </div>
+                        
+                        <div style="margin-top: 15px; border-top: 1px dashed #eee; padding-top: 15px;">
+                            <label style="font-weight: 600; font-size: 13px; color: var(--primary); display: block; margin-bottom: 10px;">Jeda Iqomah per Waktu (Menit)</label>
+                            
+                            <div style="display: flex; gap: 10px; align-items: flex-end; margin-bottom: 15px; background: #f1f8e9; padding: 10px; border-radius: 8px;">
+                                <div style="flex: 1;">
+                                    <label style="font-size: 11px; color: #555;">Set Semua Jadwal:</label>
+                                    <input type="number" id="iqomah_all_val" placeholder="Menit" style="padding: 6px 10px;">
+                                </div>
+                                <button type="button" onclick="setAllIqomah()" style="width: auto; padding: 8px 15px; margin: 0; font-size: 12px; background: var(--primary-light);">Terapkan ke Semua</button>
+                            </div>
+
+                            <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
+                                <div class="form-group">
+                                    <label>Subuh</label>
+                                    <input type="number" name="iqomah_subuh" value="${config.iqomahSubuh}" class="iqomah-input">
+                                </div>
+                                <div class="form-group">
+                                    <label>Dzuhur</label>
+                                    <input type="number" name="iqomah_dzuhur" value="${config.iqomahDzuhur}" class="iqomah-input">
+                                </div>
+                                <div class="form-group">
+                                    <label>Ashar</label>
+                                    <input type="number" name="iqomah_ashar" value="${config.iqomahAshar}" class="iqomah-input">
+                                </div>
+                                <div class="form-group">
+                                    <label>Maghrib</label>
+                                    <input type="number" name="iqomah_maghrib" value="${config.iqomahMaghrib}" class="iqomah-input">
+                                </div>
+                                <div class="form-group">
+                                    <label>Isya</label>
+                                    <input type="number" name="iqomah_isya" value="${config.iqomahIsya}" class="iqomah-input">
+                                </div>
+                                <div class="form-group">
+                                    <label>Juma'at</label>
+                                    <input type="number" name="iqomah_jumat" value="${config.iqomahJumat}" class="iqomah-input">
+                                </div>
+                            </div>
+                            <!-- Hidden input for backward compatibility or default -->
+                            <input type="hidden" name="iqomah" id="iqomah_default" value="${config.iqomahMinutes}">
+                        </div>
+
                         <div style="margin-top: 15px; border-top: 1px dashed #eee; padding-top: 15px;">
                             <label style="display: flex; align-items: center; cursor: pointer;">
                                 <input type="checkbox" name="enable_tarhim" style="width: auto; margin-right: 10px;" value="true" ${if (config.enableTarhim) "checked" else ""}>
@@ -244,6 +405,26 @@ class AdminServer private constructor(
                                     <span style="font-size: 11px; color: #666; font-weight: normal;">Menampilkan teks Arab & Terjemahan Sholawat Tarhim otomatis saat waktu IMSAK tiba.</span>
                                 </div>
                             </label>
+                            
+                            <div style="margin-top: 12px; padding-left: 28px; border-left: 2px solid #e0e0e0; margin-left: 10px;">
+                                <label style="font-size: 11px; color: #555; font-weight: 600; display: block; margin-bottom: 5px;">Suara Sholawat Tarhim (Optional)</label>
+                                <div style="display: flex; gap: 15px; margin-bottom: 8px;">
+                                    <label style="font-weight: 400; font-size: 11px; cursor: pointer; display: flex; align-items: center;">
+                                        <input type="radio" name="tarhim_audio_type" value="url" ${if (config.tarhimAudioLocalPath.isEmpty()) "checked" else ""} onchange="toggleTarhimAudioInput()" style="width: auto; margin-right: 5px;"> URL
+                                    </label>
+                                    <label style="font-weight: 400; font-size: 11px; cursor: pointer; display: flex; align-items: center;">
+                                        <input type="radio" name="tarhim_audio_type" value="upload" ${if (config.tarhimAudioLocalPath.isNotEmpty()) "checked" else ""} onchange="toggleTarhimAudioInput()" style="width: auto; margin-right: 5px;"> Upload File
+                                    </label>
+                                </div>
+                                <div id="tarhimAudioUrlInput" style="display: ${if (config.tarhimAudioLocalPath.isEmpty()) "block" else "none"};">
+                                    <input name="tarhim_audio_url" value="${config.tarhimAudioUrl}" placeholder="https://example.com/tarhim.mp3" style="font-size: 12px; padding: 8px;">
+                                </div>
+                                <div id="tarhimAudioUploadInput" style="display: ${if (config.tarhimAudioLocalPath.isNotEmpty()) "block" else "none"};">
+                                    <input type="file" name="tarhim_audio_file" accept="audio/*" style="font-size: 11px;">
+                                    ${if (config.tarhimAudioLocalPath.isNotEmpty()) """<div style="font-size: 10px; color: #2e7d32; margin-top: 4px;">✅ File tersimpan secara lokal</div>""" else ""}
+                                </div>
+                                <input type="hidden" name="tarhim_audio_local_path" value="${config.tarhimAudioLocalPath}">
+                            </div>
                         </div>
                     </div>
 
@@ -498,6 +679,33 @@ class AdminServer private constructor(
                 function updatePreview(url) {
                     document.getElementById('preview').src = url || 'https://via.placeholder.com/400x200?text=Preview';
                 }
+
+                function toggleLogoInput() {
+                    const type = document.querySelector('input[name="logo_src_type"]:checked').value;
+                    document.getElementById('logoUrlInput').style.display = type === 'url' ? 'block' : 'none';
+                    document.getElementById('logoUploadInput').style.display = type === 'upload' ? 'block' : 'none';
+                }
+
+                function updateLogoPreview(url) {
+                    document.getElementById('logoPreview').src = url || 'https://via.placeholder.com/80?text=Logo';
+                }
+
+                function toggleTarhimAudioInput() {
+                    const type = document.querySelector('input[name="tarhim_audio_type"]:checked').value;
+                    document.getElementById('tarhimAudioUrlInput').style.display = type === 'url' ? 'block' : 'none';
+                    document.getElementById('tarhimAudioUploadInput').style.display = type === 'upload' ? 'block' : 'none';
+                }
+
+                function handleLogoFileSelect(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            document.getElementById('logoPreview').src = e.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                }
                 
                 function handleFileSelect(event) {
                     const file = event.target.files[0];
@@ -622,7 +830,19 @@ class AdminServer private constructor(
                     }
                 }
 
+                function setAllIqomah() {
+                    const val = document.getElementById('iqomah_all_val').value;
+                    if (!val) return;
+                    document.querySelectorAll('.iqomah-input').forEach(input => {
+                        input.value = val;
+                    });
+                    document.getElementById('iqomah_default').value = val;
+                }
+
                 document.getElementById('mainForm').onsubmit = function() {
+                    // Update default iqomah from subuh field if not explicitly set
+                    document.getElementById('iqomah_default').value = document.getElementsByName('iqomah_subuh')[0].value;
+                    
                     // Collect all visible indices
                     const indices = Array.from(document.querySelectorAll('input[name="info_index"]')).map(el => el.value);
                     
@@ -811,7 +1031,7 @@ class AdminServer private constructor(
                     if (tempFile.exists()) {
                         try {
                             // Compress and save
-                            val compressedPath = compressAndSaveImage(tempFile)
+                            val compressedPath = compressAndSaveImage(tempFile, "backgrounds")
                             if (compressedPath != null) {
                                 bgLocalPath = compressedPath
                                 android.util.Log.d("ADMIN_SERVER", "Image compressed and saved to: $compressedPath")
@@ -831,10 +1051,33 @@ class AdminServer private constructor(
                 longitude = p["lng"]?.first()?.toDoubleOrNull() ?: oldConfig.longitude,
                 themeName = p["theme_name"]?.first()?.trim() ?: oldConfig.themeName,
                 iqomahMinutes = p["iqomah"]?.first()?.toIntOrNull() ?: oldConfig.iqomahMinutes,
+                iqomahSubuh = p["iqomah_subuh"]?.first()?.toIntOrNull() ?: oldConfig.iqomahSubuh,
+                iqomahDzuhur = p["iqomah_dzuhur"]?.first()?.toIntOrNull() ?: oldConfig.iqomahDzuhur,
+                iqomahAshar = p["iqomah_ashar"]?.first()?.toIntOrNull() ?: oldConfig.iqomahAshar,
+                iqomahMaghrib = p["iqomah_maghrib"]?.first()?.toIntOrNull() ?: oldConfig.iqomahMaghrib,
+                iqomahIsya = p["iqomah_isya"]?.first()?.toIntOrNull() ?: oldConfig.iqomahIsya,
+                iqomahJumat = p["iqomah_jumat"]?.first()?.toIntOrNull() ?: oldConfig.iqomahJumat,
                 sholatDurationMinutes = p["sholat_duration"]?.first()?.toIntOrNull() ?: oldConfig.sholatDurationMinutes,
                 backgroundUrl = p["bg_url"]?.first()?.trim() ?: oldConfig.backgroundUrl,
                 backgroundType = bgType,
                 backgroundLocalPath = bgLocalPath,
+                logoUrl = p["logo_url"]?.first()?.trim() ?: oldConfig.logoUrl,
+                logoLocalPath = run {
+                    val logoSrcType = p["logo_src_type"]?.firstOrNull() ?: "url"
+                    var currentLogoPath = p["logo_local_path"]?.firstOrNull() ?: oldConfig.logoLocalPath
+                    
+                    if (logoSrcType == "upload" && files.containsKey("logo_file")) {
+                        files["logo_file"]?.let { tempPath ->
+                            val tempFile = File(tempPath)
+                            if (tempFile.exists()) {
+                                compressAndSaveImage(tempFile, "logos")?.let {
+                                    currentLogoPath = it
+                                }
+                            }
+                        }
+                    }
+                    currentLogoPath
+                },
                 runningText = p["running_text"]?.first()?.trim() ?: oldConfig.runningText,
                 timeOffsetMinutes = p["time_offset"]?.first()?.toIntOrNull() ?: oldConfig.timeOffsetMinutes,
                 dateOffsetDays = p["date_offset"]?.first()?.toIntOrNull() ?: oldConfig.dateOffsetDays,
@@ -862,7 +1105,7 @@ class AdminServer private constructor(
                             if (!tempPath.isNullOrEmpty()) {
                                 val tempFile = File(tempPath)
                                 if (tempFile.exists()) {
-                                    compressAndSaveImage(tempFile)?.let {
+                                    compressAndSaveImage(tempFile, "info")?.let {
                                         content = it
                                     }
                                 }
@@ -878,6 +1121,29 @@ class AdminServer private constructor(
                 isActivated = pIsActivated, // ✅ PASTIIN GAK RESET
                 deviceId = pDeviceId,      // ✅ PASTIIN GAK RESET
                 enableTarhim = p["enable_tarhim"]?.firstOrNull() != null,
+                tarhimAudioUrl = p["tarhim_audio_url"]?.firstOrNull()?.trim() ?: oldConfig.tarhimAudioUrl,
+                tarhimAudioLocalPath = run {
+                    val audioType = p["tarhim_audio_type"]?.firstOrNull() ?: "url"
+                    var currentPath = p["tarhim_audio_local_path"]?.firstOrNull() ?: oldConfig.tarhimAudioLocalPath
+                    
+                    if (audioType == "upload" && files.containsKey("tarhim_audio_file")) {
+                        files["tarhim_audio_file"]?.let { tempPath ->
+                            val tempFile = File(tempPath)
+                            if (tempFile.exists()) {
+                                saveAudioFile(tempFile)?.let {
+                                    currentPath = it
+                                }
+                            }
+                        }
+                    } else if (audioType == "url") {
+                         // User explicitly wants URL, so clear local path to avoid confusion
+                         // (Unless they didn't provide a URL, but let's assume UI handles that)
+                         if (p["tarhim_audio_url"]?.firstOrNull()?.isNotEmpty() == true) {
+                             currentPath = ""
+                         }
+                    }
+                    currentPath
+                },
                 lastUpdated = SimpleDateFormat("d MMM yyyy HH:mm", Locale.forLanguageTag("id")).format(Date())
             )
 
@@ -910,27 +1176,28 @@ class AdminServer private constructor(
         }
     }
     
-    private fun compressAndSaveImage(sourceFile: File): String? {
+    private fun compressAndSaveImage(sourceFile: File, subFolder: String): String? {
         return try {
             // Decode image
             val bitmap = BitmapFactory.decodeFile(sourceFile.absolutePath) ?: return null
             
-            // Scale down if too large (max 1920px width for Full HD)
-            val scaledBitmap = if (bitmap.width > 1920) {
-                val newHeight = (bitmap.height * 1920 / bitmap.width)
-                Bitmap.createScaledBitmap(bitmap, 1920, newHeight, true)
+            // Scale down if too large (max 1920px width for backgrounds, maybe smaller for logos)
+            val maxWidth = if (subFolder == "logos") 400 else 1920
+            val scaledBitmap = if (bitmap.width > maxWidth) {
+                val newHeight = (bitmap.height * maxWidth / bitmap.width)
+                Bitmap.createScaledBitmap(bitmap, maxWidth, newHeight, true)
             } else {
                 bitmap
             }
             
             // Save to internal storage
-            val bgDir = File(context.filesDir, "backgrounds")
-            if (!bgDir.exists()) {
-                bgDir.mkdirs()
+            val targetDir = File(context.filesDir, subFolder)
+            if (!targetDir.exists()) {
+                targetDir.mkdirs()
             }
             
-            val fileName = "bg_${System.currentTimeMillis()}.jpg"
-            val targetFile = File(bgDir, fileName)
+            val fileName = "${subFolder.take(2)}_${System.currentTimeMillis()}.jpg"
+            val targetFile = File(targetDir, fileName)
             
             // Compress to JPEG with 85% quality
             FileOutputStream(targetFile).use { out ->
@@ -981,6 +1248,12 @@ class AdminServer private constructor(
                 latitude = jsonObj.optDouble("latitude", oldConfig.latitude),
                 longitude = jsonObj.optDouble("longitude", oldConfig.longitude),
                 iqomahMinutes = jsonObj.optInt("iqomahMinutes", oldConfig.iqomahMinutes),
+                iqomahSubuh = jsonObj.optInt("iqomahSubuh", oldConfig.iqomahSubuh),
+                iqomahDzuhur = jsonObj.optInt("iqomahDzuhur", oldConfig.iqomahDzuhur),
+                iqomahAshar = jsonObj.optInt("iqomahAshar", oldConfig.iqomahAshar),
+                iqomahMaghrib = jsonObj.optInt("iqomahMaghrib", oldConfig.iqomahMaghrib),
+                iqomahIsya = jsonObj.optInt("iqomahIsya", oldConfig.iqomahIsya),
+                iqomahJumat = jsonObj.optInt("iqomahJumat", oldConfig.iqomahJumat),
                 backgroundUrl = jsonObj.optString("backgroundUrl", oldConfig.backgroundUrl),
                 backgroundType = jsonObj.optString("backgroundType", oldConfig.backgroundType),
                 themeName = jsonObj.optString("themeName", oldConfig.themeName),
@@ -999,6 +1272,9 @@ class AdminServer private constructor(
                 infoDisplayInterval = jsonObj.optInt("infoDisplayInterval", oldConfig.infoDisplayInterval),
                 infoDisplayDuration = jsonObj.optInt("infoDisplayDuration", oldConfig.infoDisplayDuration),
                 enableTarhim = jsonObj.optBoolean("enableTarhim", oldConfig.enableTarhim),
+                logoLocalPath = jsonObj.optString("logoLocalPath", oldConfig.logoLocalPath),
+                tarhimAudioUrl = jsonObj.optString("tarhimAudioUrl", oldConfig.tarhimAudioUrl),
+                tarhimAudioLocalPath = jsonObj.optString("tarhimAudioLocalPath", oldConfig.tarhimAudioLocalPath),
                 lastUpdated = jsonObj.optString("lastUpdated", oldConfig.lastUpdated),
                 
                 // Parse InfoItems
@@ -1008,10 +1284,21 @@ class AdminServer private constructor(
                     if (arr != null) {
                         for(i in 0 until arr.length()) {
                             val item = arr.getJSONObject(i)
+                            var content = item.optString("content")
+                            val type = item.optString("type", "text")
+                            
+                            // Check if this is a local image path that needs downloading
+                            if (type == "image" && content.startsWith("/") && !File(content).exists()) {
+                                val filename = content.substringAfterLast("/")
+                                downloadFileFromPeer(session.remoteIpAddress, "info", filename)?.let {
+                                    content = it
+                                }
+                            }
+                            
                             list.add(InfoItem(
                                 title = item.optString("title"),
-                                content = item.optString("content"),
-                                type = item.optString("type", "text")
+                                content = content,
+                                type = type
                             ))
                         }
                     }
@@ -1047,13 +1334,56 @@ class AdminServer private constructor(
                 } catch (e: Exception) {
                     android.util.Log.e("ADMIN_SERVER", "Error saving synced background image", e)
                 }
-            } else if (newConfig.backgroundType == "upload" && newConfig.backgroundLocalPath.isEmpty()) {
-                 // If sync says upload but no local path (and no base64), might need to keep old one or handle error
-                 // For now, let's just keep what we had or empty
+            } else if (newConfig.backgroundType == "upload" && finalBgLocalPath.isNotEmpty() && !File(finalBgLocalPath).exists()) {
+                // Try download from peer
+                val filename = finalBgLocalPath.substringAfterLast("/")
+                downloadFileFromPeer(session.remoteIpAddress, "backgrounds", filename)?.let {
+                    finalBgLocalPath = it
+                }
             }
 
-            // Update config with potentially new local path
-            val finalConfig = newConfig.copy(backgroundLocalPath = finalBgLocalPath)
+            // Handle Base64 Logo
+            val logoBase64 = jsonObj.optString("logoImageBase64", "")
+            var finalLogoLocalPath = newConfig.logoLocalPath
+            
+            if (logoBase64.isNotEmpty()) {
+                try {
+                    val imageBytes = android.util.Base64.decode(logoBase64, android.util.Base64.DEFAULT)
+                    val logoDir = File(context.filesDir, "logos")
+                    if (!logoDir.exists()) logoDir.mkdirs()
+                    
+                    val fileName = "lg_sync_${System.currentTimeMillis()}.jpg"
+                    val targetFile = File(logoDir, fileName)
+                    
+                    FileOutputStream(targetFile).use { out ->
+                        out.write(imageBytes)
+                    }
+                    
+                    finalLogoLocalPath = targetFile.absolutePath
+                    android.util.Log.d("ADMIN_SERVER", "Synced logo image saved to: $finalLogoLocalPath")
+                } catch (e: Exception) {
+                    android.util.Log.e("ADMIN_SERVER", "Error saving synced logo image", e)
+                }
+            } else if (finalLogoLocalPath.isNotEmpty() && !File(finalLogoLocalPath).exists()) {
+                // Try download from peer
+                val filename = finalLogoLocalPath.substringAfterLast("/")
+            }
+
+            // Handle Audio Sync
+            var finalAudioLocalPath = newConfig.tarhimAudioLocalPath
+            if (finalAudioLocalPath.isNotEmpty() && !File(finalAudioLocalPath).exists()) {
+                val filename = finalAudioLocalPath.substringAfterLast("/")
+                downloadFileFromPeer(session.remoteIpAddress, "audio", filename)?.let {
+                    finalAudioLocalPath = it
+                }
+            }
+
+            // Update config with potentially new local paths
+            val finalConfig = newConfig.copy(
+                backgroundLocalPath = finalBgLocalPath,
+                logoLocalPath = finalLogoLocalPath,
+                tarhimAudioLocalPath = finalAudioLocalPath
+            )
 
             // Save synchronously to ensure data is written before responding
             try {
@@ -1183,6 +1513,12 @@ class AdminServer private constructor(
                     put("latitude", config.latitude)
                     put("longitude", config.longitude)
                     put("iqomahMinutes", config.iqomahMinutes)
+                    put("iqomahSubuh", config.iqomahSubuh)
+                    put("iqomahDzuhur", config.iqomahDzuhur)
+                    put("iqomahAshar", config.iqomahAshar)
+                    put("iqomahMaghrib", config.iqomahMaghrib)
+                    put("iqomahIsya", config.iqomahIsya)
+                    put("iqomahJumat", config.iqomahJumat)
                     put("backgroundUrl", config.backgroundUrl)
                     put("backgroundType", config.backgroundType)
                     put("themeName", config.themeName)
@@ -1201,6 +1537,10 @@ class AdminServer private constructor(
                     put("infoDisplayInterval", config.infoDisplayInterval)
                     put("infoDisplayDuration", config.infoDisplayDuration)
                     put("enableTarhim", config.enableTarhim)
+                    put("logoUrl", config.logoUrl)
+                    put("logoLocalPath", config.logoLocalPath)
+                    put("tarhimAudioUrl", config.tarhimAudioUrl)
+                    put("tarhimAudioLocalPath", config.tarhimAudioLocalPath)
                     put("lastUpdated", config.lastUpdated)
                     put("infoItems", JSONArray().apply {
                         config.infoItems.forEach { 
@@ -1223,6 +1563,20 @@ class AdminServer private constructor(
                             }
                         } catch (e: Exception) {
                             android.util.Log.e("ADMIN_SERVER", "Error encoding background image", e)
+                        }
+                    }
+
+                    // Encode Logo Image if needed
+                    if (config.logoLocalPath.isNotEmpty()) {
+                        try {
+                            val file = File(config.logoLocalPath)
+                            if (file.exists()) {
+                                val bytes = file.readBytes()
+                                val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.DEFAULT)
+                                put("logoImageBase64", base64)
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("ADMIN_SERVER", "Error encoding logo image", e)
                         }
                     }
                 }
