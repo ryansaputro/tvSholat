@@ -12,6 +12,10 @@ import android.graphics.BitmapFactory
 import java.io.File
 import java.io.FileOutputStream
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.core.content.FileProvider
+import com.masjid.tvsholat.BuildConfig
 import org.json.JSONObject
 import org.json.JSONArray
 
@@ -323,17 +327,17 @@ class AdminServer private constructor(
                                 <div style="flex: 1;">
                                     <div style="margin-bottom: 8px; display: flex; gap: 15px;">
                                         <label style="font-weight: 400; font-size: 12px; cursor: pointer; display: flex; align-items: center;">
-                                            <input type="radio" name="logo_src_type" value="url" checked onchange="toggleLogoInput()" style="width: auto; margin-right: 5px;"> URL
+                                            <input type="radio" name="logo_type" value="url" ${if (config.logoType == "url") "checked" else ""} onchange="toggleLogoInput()" style="width: auto; margin-right: 5px;"> URL
                                         </label>
                                         <label style="font-weight: 400; font-size: 12px; cursor: pointer; display: flex; align-items: center;">
-                                            <input type="radio" name="logo_src_type" value="upload" onchange="toggleLogoInput()" style="width: auto; margin-right: 5px;"> Upload
+                                            <input type="radio" name="logo_type" value="upload" ${if (config.logoType == "upload") "checked" else ""} onchange="toggleLogoInput()" style="width: auto; margin-right: 5px;"> Upload
                                         </label>
                                     </div>
                                     
-                                    <div id="logoUrlInput">
+                                    <div id="logoUrlInput" style="display: ${if (config.logoType == "url") "block" else "none"};">
                                         <input name="logo_url" id="logoUrlField" value="${config.logoUrl}" placeholder="https://example.com/logo.png" oninput="updateLogoPreview(this.value)" style="font-size: 12px;">
                                     </div>
-                                    <div id="logoUploadInput" style="display: none;">
+                                    <div id="logoUploadInput" style="display: ${if (config.logoType == "upload") "block" else "none"};">
                                         <input type="file" name="logo_file" accept="image/*" onchange="handleLogoFileSelect(event)" style="font-size: 12px;">
                                     </div>
                                     <input type="hidden" name="logo_local_path" id="logoLocalPath" value="${config.logoLocalPath}">
@@ -410,20 +414,37 @@ class AdminServer private constructor(
                                 <label style="font-size: 11px; color: #555; font-weight: 600; display: block; margin-bottom: 5px;">Suara Sholawat Tarhim (Optional)</label>
                                 <div style="display: flex; gap: 15px; margin-bottom: 8px;">
                                     <label style="font-weight: 400; font-size: 11px; cursor: pointer; display: flex; align-items: center;">
-                                        <input type="radio" name="tarhim_audio_type" value="url" ${if (config.tarhimAudioLocalPath.isEmpty()) "checked" else ""} onchange="toggleTarhimAudioInput()" style="width: auto; margin-right: 5px;"> URL
+                                        <input type="radio" name="tarhim_audio_type" value="url" ${if (config.tarhimAudioType == "url") "checked" else ""} onchange="toggleTarhimAudioInput()" style="width: auto; margin-right: 5px;"> URL
                                     </label>
                                     <label style="font-weight: 400; font-size: 11px; cursor: pointer; display: flex; align-items: center;">
-                                        <input type="radio" name="tarhim_audio_type" value="upload" ${if (config.tarhimAudioLocalPath.isNotEmpty()) "checked" else ""} onchange="toggleTarhimAudioInput()" style="width: auto; margin-right: 5px;"> Upload File
+                                        <input type="radio" name="tarhim_audio_type" value="upload" ${if (config.tarhimAudioType == "upload") "checked" else ""} onchange="toggleTarhimAudioInput()" style="width: auto; margin-right: 5px;"> Upload File
                                     </label>
                                 </div>
-                                <div id="tarhimAudioUrlInput" style="display: ${if (config.tarhimAudioLocalPath.isEmpty()) "block" else "none"};">
+                                <div id="tarhimAudioUrlInput" style="display: ${if (config.tarhimAudioType == "url") "block" else "none"};">
                                     <input name="tarhim_audio_url" value="${config.tarhimAudioUrl}" placeholder="https://example.com/tarhim.mp3" style="font-size: 12px; padding: 8px;">
                                 </div>
-                                <div id="tarhimAudioUploadInput" style="display: ${if (config.tarhimAudioLocalPath.isNotEmpty()) "block" else "none"};">
+                                <div id="tarhimAudioUploadInput" style="display: ${if (config.tarhimAudioType == "upload") "block" else "none"};">
                                     <input type="file" name="tarhim_audio_file" accept="audio/*" style="font-size: 11px;">
                                     ${if (config.tarhimAudioLocalPath.isNotEmpty()) """<div style="font-size: 10px; color: #2e7d32; margin-top: 4px;">✅ File tersimpan secara lokal</div>""" else ""}
                                 </div>
                                 <input type="hidden" name="tarhim_audio_local_path" value="${config.tarhimAudioLocalPath}">
+                            </div>
+                        </div>
+
+                        <!-- 🚀 UPDATE APLIKASI (OTA) -->
+                        <div style="margin-top: 15px; border-top: 2px solid var(--primary); padding-top: 15px;">
+                            <h3 style="color: var(--primary); margin-bottom: 10px;">🚀 Update Aplikasi Otomatis</h3>
+                            <p style="font-size: 11px; color: #666; margin-bottom: 12px;">Upload file APK baru di sini. Versi baru akan otomatis dikirim dan diinstall di semua TV Slave yang terhubung.</p>
+                            
+                            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border: 1px solid #bbdefb;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-weight: 600;">Upload File APK (.apk)</label>
+                                    <input type="file" name="apk_file" accept=".apk" style="font-size: 12px;">
+                                    <div style="font-size: 10px; color: #1976d2; margin-top: 5px;">
+                                        Versi Saat Ini: <b>v${BuildConfig.VERSION_NAME}</b>
+                                        ${if (config.latestApkVersionCode > 0) "<br>File Terupload: " + config.latestApkLocalPath.substringAfterLast("/") else ""}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -681,7 +702,7 @@ class AdminServer private constructor(
                 }
 
                 function toggleLogoInput() {
-                    const type = document.querySelector('input[name="logo_src_type"]:checked').value;
+                    const type = document.querySelector('input[name="logo_type"]:checked').value;
                     document.getElementById('logoUrlInput').style.display = type === 'url' ? 'block' : 'none';
                     document.getElementById('logoUploadInput').style.display = type === 'upload' ? 'block' : 'none';
                 }
@@ -1003,176 +1024,139 @@ class AdminServer private constructor(
 
     private fun saveConfig(session: NanoHTTPD.IHTTPSession): NanoHTTPD.Response {
         return try {
-            // 🔥 WAJIB ADA UNTUK POST
             val files = HashMap<String, String>()
             session.parseBody(files)
-
             val p = session.parameters
             val isFromSync = session.headers["x-sync-source"] == "true"
-            
-            // Log params biar keliatan di logcat kalau ada yang aneh
-            android.util.Log.d("ADMIN_SERVER", "Received Parameters: ${p.keys}")
-
             val oldConfig = repo.load()
             
-            // 🔥 Ambil dari parameter form (hidden input) sebagai pengaman tambahan kalau repo.load() stale
             val pIsActivated = p["is_activated"]?.firstOrNull()?.toBoolean() ?: oldConfig.isActivated
             val pDeviceId = p["device_id"]?.firstOrNull() ?: oldConfig.deviceId
             
-            // Handle file upload if present
-            val bgType = p["bg_type"]?.first()?.trim() ?: oldConfig.backgroundType
-            var bgLocalPath = p["bg_local_path"]?.first()?.trim() ?: oldConfig.backgroundLocalPath
-            
-            // Check if there's an uploaded file
-            if (bgType == "upload" && files.containsKey("bg_file")) {
-                val tempFilePath = files["bg_file"]
-                if (!tempFilePath.isNullOrEmpty()) {
-                    val tempFile = File(tempFilePath)
-                    if (tempFile.exists()) {
-                        try {
-                            // Compress and save
-                            val compressedPath = compressAndSaveImage(tempFile, "backgrounds")
-                            if (compressedPath != null) {
-                                bgLocalPath = compressedPath
-                                android.util.Log.d("ADMIN_SERVER", "Image compressed and saved to: $compressedPath")
-                            }
-                        } catch (e: Exception) {
-                            android.util.Log.e("ADMIN_SERVER", "Error compressing image", e)
-                        }
-                    }
-                }
-            }
-            
-            // 🔥 GUNAKAN .copy() BIAR DATA GAK KEHAPUS / RESET SENDIRI
             val config = oldConfig.copy(
-                name = p["name"]?.first()?.trim() ?: oldConfig.name,
-                address = p["address"]?.first()?.trim() ?: oldConfig.address,
-                latitude = p["lat"]?.first()?.toDoubleOrNull() ?: oldConfig.latitude,
-                longitude = p["lng"]?.first()?.toDoubleOrNull() ?: oldConfig.longitude,
-                themeName = p["theme_name"]?.first()?.trim() ?: oldConfig.themeName,
-                iqomahMinutes = p["iqomah"]?.first()?.toIntOrNull() ?: oldConfig.iqomahMinutes,
-                iqomahSubuh = p["iqomah_subuh"]?.first()?.toIntOrNull() ?: oldConfig.iqomahSubuh,
-                iqomahDzuhur = p["iqomah_dzuhur"]?.first()?.toIntOrNull() ?: oldConfig.iqomahDzuhur,
-                iqomahAshar = p["iqomah_ashar"]?.first()?.toIntOrNull() ?: oldConfig.iqomahAshar,
-                iqomahMaghrib = p["iqomah_maghrib"]?.first()?.toIntOrNull() ?: oldConfig.iqomahMaghrib,
-                iqomahIsya = p["iqomah_isya"]?.first()?.toIntOrNull() ?: oldConfig.iqomahIsya,
-                iqomahJumat = p["iqomah_jumat"]?.first()?.toIntOrNull() ?: oldConfig.iqomahJumat,
-                sholatDurationMinutes = p["sholat_duration"]?.first()?.toIntOrNull() ?: oldConfig.sholatDurationMinutes,
-                backgroundUrl = p["bg_url"]?.first()?.trim() ?: oldConfig.backgroundUrl,
-                backgroundType = bgType,
-                backgroundLocalPath = bgLocalPath,
-                logoUrl = p["logo_url"]?.first()?.trim() ?: oldConfig.logoUrl,
-                logoLocalPath = run {
-                    val logoSrcType = p["logo_src_type"]?.firstOrNull() ?: "url"
-                    var currentLogoPath = p["logo_local_path"]?.firstOrNull() ?: oldConfig.logoLocalPath
-                    
-                    if (logoSrcType == "upload" && files.containsKey("logo_file")) {
-                        files["logo_file"]?.let { tempPath ->
-                            val tempFile = File(tempPath)
-                            if (tempFile.exists()) {
-                                compressAndSaveImage(tempFile, "logos")?.let {
-                                    currentLogoPath = it
-                                }
-                            }
-                        }
-                    }
-                    currentLogoPath
-                },
-                runningText = p["running_text"]?.first()?.trim() ?: oldConfig.runningText,
-                timeOffsetMinutes = p["time_offset"]?.first()?.toIntOrNull() ?: oldConfig.timeOffsetMinutes,
-                dateOffsetDays = p["date_offset"]?.first()?.toIntOrNull() ?: oldConfig.dateOffsetDays,
-                treasuryBalance = p["treasury_balance"]?.first()?.trim() ?: oldConfig.treasuryBalance,
-                treasuryDescription = p["treasury_desc"]?.first()?.trim() ?: oldConfig.treasuryDescription,
-                treasuryDisplayInterval = p["treasury_interval"]?.first()?.toIntOrNull() ?: oldConfig.treasuryDisplayInterval,
-                treasuryDisplayDuration = p["treasury_duration"]?.first()?.toIntOrNull() ?: oldConfig.treasuryDisplayDuration,
-                treasuryAccountInfo = p["treasury_account"]?.first()?.trim() ?: oldConfig.treasuryAccountInfo,
-                treasuryQrisData = p["treasury_qris"]?.first()?.trim() ?: oldConfig.treasuryQrisData,
-                hadithDisplayInterval = p["hadith_interval"]?.first()?.toIntOrNull() ?: oldConfig.hadithDisplayInterval,
-                hadithDisplayDuration = p["hadith_duration"]?.first()?.toIntOrNull() ?: oldConfig.hadithDisplayDuration,
-                infoDisplayInterval = p["info_interval"]?.first()?.toIntOrNull() ?: oldConfig.infoDisplayInterval,
-                infoDisplayDuration = p["info_duration"]?.first()?.toIntOrNull() ?: oldConfig.infoDisplayDuration,
-                isTimeMaster = p["is_time_master"]?.firstOrNull() != null, // Checkbox sends value if checked, nothing if unchecked
+                name = p["name"]?.firstOrNull() ?: oldConfig.name,
+                address = p["address"]?.firstOrNull() ?: oldConfig.address,
+                latitude = p["lat"]?.firstOrNull()?.toDoubleOrNull() ?: oldConfig.latitude,
+                longitude = p["lng"]?.firstOrNull()?.toDoubleOrNull() ?: oldConfig.longitude,
+                themeName = p["theme_name"]?.firstOrNull() ?: oldConfig.themeName,
+                iqomahSubuh = p["iqomah_subuh"]?.firstOrNull()?.toIntOrNull() ?: oldConfig.iqomahSubuh,
+                iqomahDzuhur = p["iqomah_dzuhur"]?.firstOrNull()?.toIntOrNull() ?: oldConfig.iqomahDzuhur,
+                iqomahAshar = p["iqomah_ashar"]?.firstOrNull()?.toIntOrNull() ?: oldConfig.iqomahAshar,
+                iqomahMaghrib = p["iqomah_maghrib"]?.firstOrNull()?.toIntOrNull() ?: oldConfig.iqomahMaghrib,
+                iqomahIsya = p["iqomah_isya"]?.firstOrNull()?.toIntOrNull() ?: oldConfig.iqomahIsya,
+                iqomahJumat = p["iqomah_jumat"]?.firstOrNull()?.toIntOrNull() ?: oldConfig.iqomahJumat,
+                sholatDurationMinutes = p["sholat_duration"]?.firstOrNull()?.toIntOrNull() ?: oldConfig.sholatDurationMinutes,
+                backgroundUrl = p["bg_url"]?.firstOrNull() ?: oldConfig.backgroundUrl,
+                backgroundType = p["bg_type"]?.firstOrNull() ?: oldConfig.backgroundType,
+                logoUrl = p["logo_url"]?.firstOrNull() ?: oldConfig.logoUrl,
+                logoType = p["logo_type"]?.firstOrNull() ?: oldConfig.logoType,
+                runningText = p["running_text"]?.firstOrNull() ?: oldConfig.runningText,
+                timeOffsetMinutes = p["time_offset"]?.firstOrNull()?.toIntOrNull() ?: oldConfig.timeOffsetMinutes,
+                dateOffsetDays = p["date_offset"]?.firstOrNull()?.toIntOrNull() ?: oldConfig.dateOffsetDays,
+                treasuryBalance = p["treasury_balance"]?.firstOrNull() ?: oldConfig.treasuryBalance,
+                treasuryDescription = p["treasury_desc"]?.firstOrNull() ?: oldConfig.treasuryDescription,
+                treasuryDisplayInterval = p["treasury_interval"]?.firstOrNull()?.toIntOrNull() ?: oldConfig.treasuryDisplayInterval,
+                treasuryDisplayDuration = p["treasury_duration"]?.firstOrNull()?.toIntOrNull() ?: oldConfig.treasuryDisplayDuration,
+                treasuryAccountInfo = p["treasury_account"]?.firstOrNull() ?: oldConfig.treasuryAccountInfo,
+                treasuryQrisData = p["treasury_qris"]?.firstOrNull() ?: oldConfig.treasuryQrisData,
+                hadithDisplayInterval = p["hadith_interval"]?.firstOrNull()?.toIntOrNull() ?: oldConfig.hadithDisplayInterval,
+                hadithDisplayDuration = p["hadith_duration"]?.firstOrNull()?.toIntOrNull() ?: oldConfig.hadithDisplayDuration,
+                infoDisplayInterval = p["info_interval"]?.firstOrNull()?.toIntOrNull() ?: oldConfig.infoDisplayInterval,
+                infoDisplayDuration = p["info_duration"]?.firstOrNull()?.toIntOrNull() ?: oldConfig.infoDisplayDuration,
+                isTimeMaster = p["is_time_master"]?.firstOrNull() == "true",
+                isActivated = pIsActivated,
+                deviceId = pDeviceId,
+                enableTarhim = p["enable_tarhim"]?.firstOrNull() == "true",
+                tarhimAudioUrl = p["tarhim_audio_url"]?.firstOrNull() ?: oldConfig.tarhimAudioUrl,
+                tarhimAudioType = p["tarhim_audio_type"]?.firstOrNull() ?: oldConfig.tarhimAudioType,
+                lastUpdated = SimpleDateFormat("d MMM yyyy HH:mm", Locale.forLanguageTag("id")).format(Date()),
                 infoItems = p["info_index"].orEmpty().map { strIndex ->
                     val index = strIndex.toIntOrNull()
                     if (index != null) {
-                        val title = p["info_title_$index"]?.first()?.trim() ?: ""
-                        var content = p["info_content_$index"]?.first()?.trim() ?: ""
-                        val type = p["info_real_type_$index"]?.first()?.trim() ?: "text"
-                        
-                        // Handle info image upload
+                        val title = p["info_title_$index"]?.firstOrNull() ?: ""
+                        var content = p["info_content_$index"]?.firstOrNull() ?: ""
+                        val type = p["info_real_type_$index"]?.firstOrNull() ?: "text"
                         if (type == "image" && files.containsKey("info_file_$index")) {
-                            val tempPath = files["info_file_$index"]
-                            if (!tempPath.isNullOrEmpty()) {
+                            files["info_file_$index"]?.let { tempPath ->
                                 val tempFile = File(tempPath)
                                 if (tempFile.exists()) {
-                                    compressAndSaveImage(tempFile, "info")?.let {
-                                        content = it
-                                    }
+                                    compressAndSaveImage(tempFile, "info")?.let { content = it }
                                 }
                             }
                         }
-                        
-                        // Only save non-empty items (or title non-empty) to keep DB clean
-                        if (title.isNotEmpty() || content.isNotEmpty()) {
-                            InfoItem(title, content, type)
-                        } else null
+                        if (title.isNotEmpty() || content.isNotEmpty()) InfoItem(title, content, type) else null
                     } else null
-                }.filterNotNull(),
-                isActivated = pIsActivated, // ✅ PASTIIN GAK RESET
-                deviceId = pDeviceId,      // ✅ PASTIIN GAK RESET
-                enableTarhim = p["enable_tarhim"]?.firstOrNull() != null,
-                tarhimAudioUrl = p["tarhim_audio_url"]?.firstOrNull()?.trim() ?: oldConfig.tarhimAudioUrl,
-                tarhimAudioLocalPath = run {
-                    val audioType = p["tarhim_audio_type"]?.firstOrNull() ?: "url"
-                    var currentPath = p["tarhim_audio_local_path"]?.firstOrNull() ?: oldConfig.tarhimAudioLocalPath
-                    
-                    if (audioType == "upload" && files.containsKey("tarhim_audio_file")) {
-                        files["tarhim_audio_file"]?.let { tempPath ->
-                            val tempFile = File(tempPath)
-                            if (tempFile.exists()) {
-                                saveAudioFile(tempFile)?.let {
-                                    currentPath = it
-                                }
-                            }
-                        }
-                    } else if (audioType == "url") {
-                         // User explicitly wants URL, so clear local path to avoid confusion
-                         // (Unless they didn't provide a URL, but let's assume UI handles that)
-                         if (p["tarhim_audio_url"]?.firstOrNull()?.isNotEmpty() == true) {
-                             currentPath = ""
-                         }
-                    }
-                    currentPath
-                },
-                lastUpdated = SimpleDateFormat("d MMM yyyy HH:mm", Locale.forLanguageTag("id")).format(Date())
+                }.filterNotNull()
             )
 
-            android.util.Log.d("ADMIN_SERVER", "Saving config: $config")
-
-            // Save in IO thread
-            var syncStatus = ""
-            runBlocking(Dispatchers.IO) {
-                repo.save(config)
-                
-                // 🔥 Broadcast ONLY if requested by user (Sync button)
-                val syncMode = p["sync_mode"]?.firstOrNull()
-                if (syncMode == "broadcast" && !isFromSync) {
-                     syncStatus = broadcastConfigToPeers(config)
+            // Handle Uploads & CRITICAL: Reset local path if switching to URL
+            var finalBgLocalPath = if (config.backgroundType == "url") "" else config.backgroundLocalPath
+            if (config.backgroundType == "upload" && files.containsKey("bg_file")) {
+                files["bg_file"]?.let { tempPath ->
+                    val tempFile = File(tempPath)
+                    if (tempFile.exists()) {
+                        compressAndSaveImage(tempFile, "backgrounds")?.let { finalBgLocalPath = it }
+                    }
                 }
             }
 
-            // Redirect back to home with success param
+            var finalLogoLocalPath = if (config.logoType == "url") "" else config.logoLocalPath
+            if (config.logoType == "upload" && files.containsKey("logo_file")) {
+                files["logo_file"]?.let { tempPath ->
+                    val tempFile = File(tempPath)
+                    if (tempFile.exists()) {
+                        compressAndSaveImage(tempFile, "logos")?.let { finalLogoLocalPath = it }
+                    }
+                }
+            }
+
+            var finalAudioLocalPath = if (config.tarhimAudioType == "url") "" else config.tarhimAudioLocalPath
+            if (config.tarhimAudioType == "upload" && files.containsKey("tarhim_audio_file")) {
+                files["tarhim_audio_file"]?.let { tempPath ->
+                    val tempFile = File(tempPath)
+                    if (tempFile.exists()) {
+                        saveAudioFile(tempFile)?.let { finalAudioLocalPath = it }
+                    }
+                }
+            }
+
+            var finalApkLocalPath = config.latestApkLocalPath
+            var finalApkVersionCode = config.latestApkVersionCode
+            if (files.containsKey("apk_file")) {
+                files["apk_file"]?.let { tempPath ->
+                    val tempFile = File(tempPath)
+                    if (tempFile.exists()) {
+                        saveApkFile(tempFile)?.let {
+                            finalApkLocalPath = it
+                            finalApkVersionCode = (System.currentTimeMillis() / 1000).toInt()
+                        }
+                    }
+                }
+            }
+
+            val finalConfig = config.copy(
+                backgroundLocalPath = finalBgLocalPath,
+                logoLocalPath = finalLogoLocalPath,
+                tarhimAudioLocalPath = finalAudioLocalPath,
+                latestApkLocalPath = finalApkLocalPath,
+                latestApkVersionCode = finalApkVersionCode
+            )
+
+            var syncStatus = ""
+            runBlocking(Dispatchers.IO) {
+                repo.save(finalConfig)
+                if (p["sync_mode"]?.firstOrNull() == "broadcast" && !isFromSync) {
+                    syncStatus = broadcastConfigToPeers(finalConfig)
+                }
+            }
+
             val response = newFixedLengthResponse(NanoHTTPD.Response.Status.REDIRECT, MIME_HTML, "")
             val loc = "/?saved=1" + if(syncStatus.isNotEmpty()) "&sync_status=$syncStatus" else ""
             response.addHeader("Location", loc)
             response
         } catch (e: Exception) {
             e.printStackTrace()
-            newFixedLengthResponse(
-                NanoHTTPD.Response.Status.INTERNAL_ERROR,
-                MIME_PLAINTEXT,
-                "ERROR: ${e.message}"
-            )
+            newFixedLengthResponse(NanoHTTPD.Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "ERROR: ${e.message}")
         }
     }
     
@@ -1272,9 +1256,14 @@ class AdminServer private constructor(
                 infoDisplayInterval = jsonObj.optInt("infoDisplayInterval", oldConfig.infoDisplayInterval),
                 infoDisplayDuration = jsonObj.optInt("infoDisplayDuration", oldConfig.infoDisplayDuration),
                 enableTarhim = jsonObj.optBoolean("enableTarhim", oldConfig.enableTarhim),
+                logoUrl = jsonObj.optString("logoUrl", oldConfig.logoUrl),
+                logoType = jsonObj.optString("logoType", oldConfig.logoType),
                 logoLocalPath = jsonObj.optString("logoLocalPath", oldConfig.logoLocalPath),
                 tarhimAudioUrl = jsonObj.optString("tarhimAudioUrl", oldConfig.tarhimAudioUrl),
+                tarhimAudioType = jsonObj.optString("tarhimAudioType", oldConfig.tarhimAudioType),
                 tarhimAudioLocalPath = jsonObj.optString("tarhimAudioLocalPath", oldConfig.tarhimAudioLocalPath),
+                latestApkVersionCode = jsonObj.optInt("latestApkVersionCode", oldConfig.latestApkVersionCode),
+                latestApkLocalPath = jsonObj.optString("latestApkLocalPath", oldConfig.latestApkLocalPath),
                 lastUpdated = jsonObj.optString("lastUpdated", oldConfig.lastUpdated),
                 
                 // Parse InfoItems
@@ -1367,6 +1356,26 @@ class AdminServer private constructor(
             } else if (finalLogoLocalPath.isNotEmpty() && !File(finalLogoLocalPath).exists()) {
                 // Try download from peer
                 val filename = finalLogoLocalPath.substringAfterLast("/")
+                downloadFileFromPeer(session.remoteIpAddress, "logos", filename)?.let {
+                    finalLogoLocalPath = it
+                }
+            }
+
+            // Handle APK Update Sync
+            var finalApkLocalPath = newConfig.latestApkLocalPath
+            if (newConfig.latestApkVersionCode > BuildConfig.VERSION_CODE) {
+                if (finalApkLocalPath.isNotEmpty() && !File(finalApkLocalPath).exists()) {
+                    val filename = finalApkLocalPath.substringAfterLast("/")
+                    downloadFileFromPeer(session.remoteIpAddress, "updates", filename)?.let {
+                        finalApkLocalPath = it
+                        
+                        // 🔥 TRIGGER UPDATE INSTALLATION
+                        installApk(it)
+                    }
+                } else if (finalApkLocalPath.isNotEmpty() && File(finalApkLocalPath).exists()) {
+                    // File already exists, trigger install if not already on this version
+                    installApk(finalApkLocalPath)
+                }
             }
 
             // Handle Audio Sync
@@ -1382,7 +1391,8 @@ class AdminServer private constructor(
             val finalConfig = newConfig.copy(
                 backgroundLocalPath = finalBgLocalPath,
                 logoLocalPath = finalLogoLocalPath,
-                tarhimAudioLocalPath = finalAudioLocalPath
+                tarhimAudioLocalPath = finalAudioLocalPath,
+                latestApkLocalPath = finalApkLocalPath
             )
 
             // Save synchronously to ensure data is written before responding
@@ -1538,9 +1548,13 @@ class AdminServer private constructor(
                     put("infoDisplayDuration", config.infoDisplayDuration)
                     put("enableTarhim", config.enableTarhim)
                     put("logoUrl", config.logoUrl)
+                    put("logoType", config.logoType)
                     put("logoLocalPath", config.logoLocalPath)
                     put("tarhimAudioUrl", config.tarhimAudioUrl)
+                    put("tarhimAudioType", config.tarhimAudioType)
                     put("tarhimAudioLocalPath", config.tarhimAudioLocalPath)
+                    put("latestApkVersionCode", config.latestApkVersionCode)
+                    put("latestApkLocalPath", config.latestApkLocalPath)
                     put("lastUpdated", config.lastUpdated)
                     put("infoItems", JSONArray().apply {
                         config.infoItems.forEach { 
@@ -1646,5 +1660,45 @@ class AdminServer private constructor(
                 return "failed:${e.message}"
             }
         }
+
+    private fun installApk(apkPath: String) {
+        try {
+            val file = File(apkPath)
+            if (!file.exists()) return
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(
+                    FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file),
+                    "application/vnd.android.package-archive"
+                )
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            android.util.Log.e("ADMIN_SERVER", "Update failed: ${e.message}")
+        }
     }
+
+    private fun saveApkFile(sourceFile: File): String? {
+        return try {
+            val updateDir = File(context.filesDir, "updates")
+            if (!updateDir.exists()) updateDir.mkdirs()
+            
+            // Hapus file lama agar hemat storage
+            updateDir.listFiles()?.forEach { it.delete() }
+            
+            val fileName = "update_${System.currentTimeMillis()}.apk"
+            val targetFile = File(updateDir, fileName)
+            sourceFile.inputStream().use { input ->
+                targetFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            targetFile.absolutePath
+        } catch (e: Exception) {
+            android.util.Log.e("ADMIN_SERVER", "Error saving APK", e)
+            null
+        }
+    }
+}
 

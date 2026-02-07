@@ -17,6 +17,7 @@ data class MasjidConfig(
     val logoLocalPath: String = "",
     val backgroundType: String = "url", // "url" or "upload"
     val backgroundLocalPath: String = "",
+    val logoType: String = "url", // "url" or "upload"
     val themeName: String = "simple",
     val runningText: String = "Selamat datang di Masjid Al-Kautsar. Luruskan dan rapatkan shaf sholat kita.",
     val timeOffsetMinutes: Int = 0,
@@ -41,5 +42,8 @@ data class MasjidConfig(
     val isTimeMaster: Boolean = false,
     val enableTarhim: Boolean = false,
     val tarhimAudioUrl: String = "",
-    val tarhimAudioLocalPath: String = ""
+    val tarhimAudioType: String = "url", // "url" or "upload"
+    val tarhimAudioLocalPath: String = "",
+    val latestApkVersionCode: Int = 0,
+    val latestApkLocalPath: String = ""
 )

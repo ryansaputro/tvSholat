@@ -19,14 +19,14 @@ fun MasjidLogo(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val model = when {
-        config.logoLocalPath.isNotEmpty() && File(config.logoLocalPath).exists() -> {
-            File(config.logoLocalPath)
+    val model = when (config.logoType) {
+        "upload" -> {
+            if (config.logoLocalPath.isNotEmpty()) {
+                val file = File(config.logoLocalPath)
+                if (file.exists()) file else null
+            } else null
         }
-        config.logoUrl.isNotEmpty() -> {
-            config.logoUrl
-        }
-        else -> null
+        else -> config.logoUrl.takeIf { it.isNotEmpty() }
     }
 
     if (model != null) {

@@ -63,6 +63,7 @@ class MasjidConfigRepository private constructor(context: Context) {
             .putString("bg_local_path", config.backgroundLocalPath)
             .putString("logo_url", config.logoUrl)
             .putString("logo_local_path", config.logoLocalPath)
+            .putString("logo_type", config.logoType)
             .putString("theme_name", config.themeName)
             .putString("running_text", config.runningText)
             .putInt("time_offset", config.timeOffsetMinutes)
@@ -95,7 +96,10 @@ class MasjidConfigRepository private constructor(context: Context) {
             .putBoolean("is_time_master", config.isTimeMaster)
             .putBoolean("enable_tarhim", config.enableTarhim)
             .putString("tarhim_audio_url", config.tarhimAudioUrl)
+            .putString("tarhim_audio_type", config.tarhimAudioType)
             .putString("tarhim_audio_local_path", config.tarhimAudioLocalPath)
+            .putInt("latest_apk_version", config.latestApkVersionCode)
+            .putString("latest_apk_local_path", config.latestApkLocalPath)
             .commit() // 🔥 PAKE COMMIT BIAR SINCRONOUS (Sync ke Disk)
     }
 
@@ -115,6 +119,7 @@ class MasjidConfigRepository private constructor(context: Context) {
             backgroundUrl = prefs.getString("bg_url", "") ?: "",
             logoUrl = prefs.getString("logo_url", "") ?: "",
             logoLocalPath = prefs.getString("logo_local_path", "") ?: "",
+            logoType = prefs.getString("logo_type", "url") ?: "url",
             backgroundType = prefs.getString("bg_type", "url") ?: "url",
             sholatDurationMinutes = prefs.getInt("sholat_duration", 10),
             backgroundLocalPath = prefs.getString("bg_local_path", "") ?: "",
@@ -176,7 +181,10 @@ class MasjidConfigRepository private constructor(context: Context) {
             isTimeMaster = prefs.getBoolean("is_time_master", false),
             enableTarhim = prefs.getBoolean("enable_tarhim", false),
             tarhimAudioUrl = prefs.getString("tarhim_audio_url", "") ?: "",
-            tarhimAudioLocalPath = prefs.getString("tarhim_audio_local_path", "") ?: ""
+            tarhimAudioType = prefs.getString("tarhim_audio_type", "url") ?: "url",
+            tarhimAudioLocalPath = prefs.getString("tarhim_audio_local_path", "") ?: "",
+            latestApkVersionCode = prefs.getInt("latest_apk_version", 0),
+            latestApkLocalPath = prefs.getString("latest_apk_local_path", "") ?: ""
         )
     }
 }

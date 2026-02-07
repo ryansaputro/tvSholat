@@ -60,7 +60,10 @@ fun TarhimScreen(
 
     // --- AUDIO PLAYBACK ---
     val context = LocalContext.current
-    val audioSource = config.tarhimAudioLocalPath.ifEmpty { config.tarhimAudioUrl }
+    val audioSource = when (config.tarhimAudioType) {
+        "upload" -> if (config.tarhimAudioLocalPath.isNotEmpty() && java.io.File(config.tarhimAudioLocalPath).exists()) config.tarhimAudioLocalPath else ""
+        else -> config.tarhimAudioUrl
+    }
 
     if (audioSource.isNotEmpty()) {
         DisposableEffect(audioSource) {
