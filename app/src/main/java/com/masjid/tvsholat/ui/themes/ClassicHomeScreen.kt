@@ -70,7 +70,7 @@ fun ClassicHomeScreen(
                     com.masjid.tvsholat.ui.components.MasjidLogo(
                         config = config,
                         size = 50.dp,
-                        modifier = Modifier.padding(end = 12.dp)
+                        modifier = Modifier.padding(end = 8.dp)
                     )
                     
                     Column {

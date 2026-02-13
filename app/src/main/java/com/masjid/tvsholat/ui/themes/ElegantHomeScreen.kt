@@ -75,7 +75,7 @@ fun ElegantHomeScreen(
                     com.masjid.tvsholat.ui.components.MasjidLogo(
                         config = config,
                         size = 60.dp,
-                        modifier = Modifier.padding(end = 16.dp)
+                        modifier = Modifier.padding(end = 8.dp)
                     )
                     
                     Column {

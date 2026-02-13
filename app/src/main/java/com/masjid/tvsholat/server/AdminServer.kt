@@ -344,7 +344,7 @@ class AdminServer private constructor(
                                 </div>
                                 
                                 <div style="width: 80px; height: 80px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background: #f9f9f9; display: flex; align-items: center; justify-content: center;">
-                                    <img id="logoPreview" src="${if (config.logoLocalPath.isNotEmpty()) "file://" + config.logoLocalPath else if (config.logoUrl.isNotEmpty()) config.logoUrl else "https://via.placeholder.com/80?text=Logo"}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                                    <img id="logoPreview" src="${if (config.logoLocalPath.isNotEmpty()) getFilesUrl(config.logoLocalPath) else if (config.logoUrl.isNotEmpty()) config.logoUrl else "https://via.placeholder.com/80?text=Logo"}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                                 </div>
                             </div>
                         </div>
@@ -469,8 +469,9 @@ class AdminServer private constructor(
                             ${if (config.isActivated) "Lisensi aktif. Perangkat Anda sudah terdaftar di sistem." else "Gunakan Nomor Seri di atas untuk aktivasi melalui Admin Telegram."}
                         </p>
                         <input type="hidden" name="is_activated" value="${config.isActivated}">
-                        <input type="hidden" name="device_id" value="${config.deviceId}">
-                    </div>
+                            <input type="hidden" name="device_id" value="${config.deviceId}">
+                            <input type="hidden" name="enable_power_saving_real" id="enable_power_saving_real" value="${config.enablePowerSaving}">
+                        </div>
 
                     <div class="card">
                         <h3>🌐 Perangkat Terhubung (Satu Jaringan)</h3>
@@ -510,19 +511,38 @@ class AdminServer private constructor(
                                 <input name="time_offset" type="number" value="${config.timeOffsetMinutes}">
                             </div>
                             <div class="form-group">
-                            <div class="form-group">
                                 <label>Koreksi Tanggal (Hari)</label>
                                 <input name="date_offset" type="number" value="${config.dateOffsetDays}">
                             </div>
                         </div>
                         <div style="margin-top: 15px; border-top: 1px dashed #eee; padding-top: 15px;">
                             <label style="display: flex; align-items: center; cursor: pointer;">
-                                <input type="checkbox" name="is_time_master" style="width: auto; margin-right: 10px;"value="true" ${if (config.isTimeMaster) "checked" else ""}>
+                                <input type="checkbox" name="is_time_master" style="width: auto; margin-right: 10px;" value="true" ${if (config.isTimeMaster) "checked" else ""}>
                                 <div>
                                     <span style="font-weight: 600; display: block;">Jadikan Pusat Waktu (Master)</span>
                                     <span style="font-size: 11px; color: #666; font-weight: normal;">Centang jika TV ini adalah acuan waktu untuk TV lain (Biar detik sinkron).</span>
                                 </div>
                             </label>
+                        </div>
+                        <div style="margin-top: 15px; border-top: 1px dashed #eee; padding-top: 15px;">
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="checkbox" name="enable_power_saving" style="width: auto; margin-right: 10px;" value="true" ${if (config.enablePowerSaving) "checked" else ""}>
+                                <div>
+                                    <span style="font-weight: 600; display: block;">Mode Hemat Daya (Standby)</span>
+                                    <span style="font-size: 11px; color: #666; font-weight: normal;">Layar TV otomatis hitam jika jauh dari waktu sholat (Hemat umur TV).</span>
+                                </div>
+                            </label>
+                            
+                            <div style="margin-top: 10px; padding-left: 28px; display: flex; gap: 15px;">
+                                <div style="flex: 1;">
+                                    <label style="font-size: 11px; color: #555;">Nyala SEBELUM Sholat (Menit)</label>
+                                    <input type="number" name="power_saving_pre" value="${config.powerSavingPreMinutes}" placeholder="Default: 60" style="padding: 6px 10px; font-size: 12px;">
+                                </div>
+                                <div style="flex: 1;">
+                                    <label style="font-size: 11px; color: #555;">Nyala SETELAH Sholat (Menit)</label>
+                                    <input type="number" name="power_saving_post" value="${config.powerSavingPostMinutes}" placeholder="Default: 60" style="padding: 6px 10px; font-size: 12px;">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -558,7 +578,7 @@ class AdminServer private constructor(
                             <input type="hidden" name="bg_local_path" id="bgLocalPath" value="${config.backgroundLocalPath}">
                             
                             <div class="preview-box" style="margin-top: 10px;">
-                                <img id="preview" src="${if (config.backgroundType == "upload" && config.backgroundLocalPath.isNotEmpty()) "file://" + config.backgroundLocalPath else config.backgroundUrl}" onerror="this.src='https://via.placeholder.com/400x200?text=Preview'">
+                                <img id="preview" src="${if (config.backgroundType == "upload" && config.backgroundLocalPath.isNotEmpty()) getFilesUrl(config.backgroundLocalPath) else config.backgroundUrl}" onerror="this.src='https://via.placeholder.com/400x200?text=Preview'">
                             </div>
                         </div>
                     </div>
@@ -651,8 +671,8 @@ class AdminServer private constructor(
                                             <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Poster Gambar (Upload / URL)</label>
                                             <div style="display: flex; flex-direction: column; gap: 8px;">
                                                 <input type="file" name="info_file_$index" id="info_file_$index" accept="image/*" onchange="handleInfoFileSelect(event, $index)" style="font-size: 12px;">
-                                                <div style="display: flex; gap: 8px;">
-                                                    <input id="image_url_$index" value="${if (item.type == "image") safeContent else ""}" placeholder="Atau masukkan URL: https://example.com/poster.jpg" style="margin-bottom: 0; flex: 1;">
+                                                 <div style="display: flex; gap: 8px;">
+                                                    <input id="image_url_$index" value="${if (item.type == "image") (if (item.content.startsWith("/")) getFilesUrl(item.content) else safeContent) else ""}" placeholder="Atau masukkan URL: https://example.com/poster.jpg" style="margin-bottom: 0; flex: 1;">
                                                     <button type="button" onclick="previewInfo($index)" style="margin:0; padding: 0 15px; width: auto; background: #2196f3;">Preview</button>
                                                 </div>
                                             </div>
@@ -861,6 +881,12 @@ class AdminServer private constructor(
                 }
 
                 document.getElementById('mainForm').onsubmit = function() {
+                    // Force Sync Power Saving Checkbox to Hidden Input
+                    const psCheckbox = document.querySelector('input[name="enable_power_saving"]');
+                    if (psCheckbox) {
+                         document.getElementById('enable_power_saving_real').value = psCheckbox.checked ? 'true' : 'false';
+                    }
+
                     // Update default iqomah from subuh field if not explicitly set
                     document.getElementById('iqomah_default').value = document.getElementsByName('iqomah_subuh')[0].value;
                     
@@ -1022,6 +1048,16 @@ class AdminServer private constructor(
         return newFixedLengthResponse(NanoHTTPD.Response.Status.OK, MIME_HTML, html)
     }
 
+    private fun getFilesUrl(localPath: String): String {
+        if (localPath.isEmpty()) return ""
+        val filesDir = context.filesDir.absolutePath
+        if (localPath.startsWith(filesDir)) {
+            val relative = localPath.substring(filesDir.length)
+            return "/files$relative"
+        }
+        return localPath
+    }
+    
     private fun saveConfig(session: NanoHTTPD.IHTTPSession): NanoHTTPD.Response {
         return try {
             val files = HashMap<String, String>()
@@ -1033,9 +1069,22 @@ class AdminServer private constructor(
             val pIsActivated = p["is_activated"]?.firstOrNull()?.toBoolean() ?: oldConfig.isActivated
             val pDeviceId = p["device_id"]?.firstOrNull() ?: oldConfig.deviceId
             
-            val config = oldConfig.copy(
-                name = p["name"]?.firstOrNull() ?: oldConfig.name,
-                address = p["address"]?.firstOrNull() ?: oldConfig.address,
+                // Ultra-robust checkbox logic
+                // Cek di segala penjuru: parameters, files, query string?
+                // NanoHTTPD kadang naruh checkbox di 'params' tapi listnya null kalau cuma keys.
+                val powerSavingParam = p["enable_power_saving"]
+                val enablePowerSavingVal = 
+                    p["enable_power_saving_real"]?.firstOrNull() == "true" || // HIGHEST PRIORITY: Hidden Input set by JS
+                    powerSavingParam?.firstOrNull() == "true" || // Standard: key=true
+                    p.containsKey("enable_power_saving") || // Standard checkbox: key present = checked
+                    files.containsKey("enable_power_saving") // Weird edge case
+                
+                val config = oldConfig.copy(
+                    enablePowerSaving = enablePowerSavingVal,
+                    powerSavingPreMinutes = p["power_saving_pre"]?.firstOrNull()?.takeIf { it.isNotBlank() }?.toIntOrNull() ?: 60,
+                    powerSavingPostMinutes = p["power_saving_post"]?.firstOrNull()?.takeIf { it.isNotBlank() }?.toIntOrNull() ?: 60,
+                    name = p["name"]?.firstOrNull() ?: oldConfig.name,
+                    address = p["address"]?.firstOrNull() ?: oldConfig.address,
                 latitude = p["lat"]?.firstOrNull()?.toDoubleOrNull() ?: oldConfig.latitude,
                 longitude = p["lng"]?.firstOrNull()?.toDoubleOrNull() ?: oldConfig.longitude,
                 themeName = p["theme_name"]?.firstOrNull() ?: oldConfig.themeName,
@@ -1162,8 +1211,19 @@ class AdminServer private constructor(
     
     private fun compressAndSaveImage(sourceFile: File, subFolder: String): String? {
         return try {
-            // Decode image
-            val bitmap = BitmapFactory.decodeFile(sourceFile.absolutePath) ?: return null
+            // Robust detection of format via BitmapFactory.Options
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(sourceFile.absolutePath, options)
+            val mimeType = options.outMimeType ?: ""
+            val isPng = mimeType.equals("image/png", ignoreCase = true)
+            
+            // Decode image with Alpha protection if PNG
+            val decodeOptions = BitmapFactory.Options().apply {
+                if (isPng) {
+                    inPreferredConfig = Bitmap.Config.ARGB_8888
+                }
+            }
+            val bitmap = BitmapFactory.decodeFile(sourceFile.absolutePath, decodeOptions) ?: return null
             
             // Scale down if too large (max 1920px width for backgrounds, maybe smaller for logos)
             val maxWidth = if (subFolder == "logos") 400 else 1920
@@ -1180,12 +1240,17 @@ class AdminServer private constructor(
                 targetDir.mkdirs()
             }
             
-            val fileName = "${subFolder.take(2)}_${System.currentTimeMillis()}.jpg"
+            // Detect extension from discovered format
+            val format = if (isPng) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG
+            val extension = if (isPng) "png" else "jpg"
+            val quality = if (isPng) 100 else 85 // PNG is lossless, quality param is ignored but 100 is safe
+            
+            val fileName = "${subFolder.take(2)}_${System.currentTimeMillis()}.$extension"
             val targetFile = File(targetDir, fileName)
             
-            // Compress to JPEG with 85% quality
+            // Compress to appropriate format
             FileOutputStream(targetFile).use { out ->
-                scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
+                scaledBitmap.compress(format, quality, out)
             }
             
             // Clean up

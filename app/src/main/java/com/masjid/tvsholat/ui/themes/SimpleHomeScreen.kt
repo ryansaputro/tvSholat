@@ -97,7 +97,7 @@ fun SimpleHomeScreen(
                 com.masjid.tvsholat.ui.components.MasjidLogo(
                     config = config,
                     size = 40.dp,
-                    modifier = Modifier.padding(end = 12.dp)
+                    modifier = Modifier.padding(end = 8.dp)
                 )
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

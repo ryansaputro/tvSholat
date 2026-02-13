@@ -34,18 +34,27 @@ object TimeRepository {
      */
     fun updateOffset(masterTimeMillis: Long, roundTripLatency: Long = 0) {
         val now = System.currentTimeMillis()
-        // Simple Network Time Protocol (SNTP) simplified:
-        // RemoteTime = MasterTime + Latency/2
-        // Offset = RemoteTime - LocalTime
         
+        // NTP Logic:
+        // RemoteClockTime = masterTimeMillis + (RTT / 2)
+        // newOffset = RemoteClockTime - now
         val estimatedMasterTime = masterTimeMillis + (roundTripLatency / 2)
         val newOffset = estimatedMasterTime - now
 
-        // Only update if difference is noticeable (> 500ms) to avoid jitter
-        // or if we haven't synced yet (offset is 0)
-        if (timeOffsetMillis == 0L || abs(newOffset - timeOffsetMillis) > 200) {
+        // Smoothing: Alih-alih langsung ganti total (bikin jam lompat), 
+        // kita pake weighted average kalo bedanya tipis.
+        // Kalo bedanya gede (> 2 detik), langsung sinkron biar gak kelamaan.
+        if (timeOffsetMillis == 0L || abs(newOffset - timeOffsetMillis) > 2000) {
             timeOffsetMillis = newOffset
-            android.util.Log.d("TimeRepository", "Time synced. Offset logic: $newOffset ms (Master: $masterTimeMillis, Local: $now)")
+            android.util.Log.d("TimeRepository", "Heavy Sync: Offset set to $newOffset ms (RTT: $roundTripLatency)")
+        } else {
+            // Weighted average: 80% old, 20% new untuk mencegah jitter
+            timeOffsetMillis = (timeOffsetMillis * 0.8 + newOffset * 0.2).toLong()
+            
+            // Log hanya jika ada perubahan signifikan (> 50ms) biar gak nyepam log
+            if (abs(newOffset - timeOffsetMillis) > 50) {
+                android.util.Log.d("TimeRepository", "Smooth Sync: New target $newOffset ms, current smoothed: $timeOffsetMillis ms")
+            }
         }
     }
     

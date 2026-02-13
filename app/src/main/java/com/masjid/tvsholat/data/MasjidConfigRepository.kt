@@ -100,6 +100,9 @@ class MasjidConfigRepository private constructor(context: Context) {
             .putString("tarhim_audio_local_path", config.tarhimAudioLocalPath)
             .putInt("latest_apk_version", config.latestApkVersionCode)
             .putString("latest_apk_local_path", config.latestApkLocalPath)
+            .putBoolean("enable_power_saving", config.enablePowerSaving)
+            .putInt("power_saving_pre", config.powerSavingPreMinutes)
+            .putInt("power_saving_post", config.powerSavingPostMinutes)
             .commit() // 🔥 PAKE COMMIT BIAR SINCRONOUS (Sync ke Disk)
     }
 
@@ -184,7 +187,10 @@ class MasjidConfigRepository private constructor(context: Context) {
             tarhimAudioType = prefs.getString("tarhim_audio_type", "url") ?: "url",
             tarhimAudioLocalPath = prefs.getString("tarhim_audio_local_path", "") ?: "",
             latestApkVersionCode = prefs.getInt("latest_apk_version", 0),
-            latestApkLocalPath = prefs.getString("latest_apk_local_path", "") ?: ""
+            latestApkLocalPath = prefs.getString("latest_apk_local_path", "") ?: "",
+            enablePowerSaving = prefs.getBoolean("enable_power_saving", false),
+            powerSavingPreMinutes = prefs.getInt("power_saving_pre", 60),
+            powerSavingPostMinutes = prefs.getInt("power_saving_post", 60)
         )
     }
 }

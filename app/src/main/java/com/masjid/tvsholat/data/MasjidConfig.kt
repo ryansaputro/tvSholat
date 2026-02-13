@@ -45,5 +45,8 @@ data class MasjidConfig(
     val tarhimAudioType: String = "url", // "url" or "upload"
     val tarhimAudioLocalPath: String = "",
     val latestApkVersionCode: Int = 0,
-    val latestApkLocalPath: String = ""
+    val latestApkLocalPath: String = "",
+    val enablePowerSaving: Boolean = false,
+    val powerSavingPreMinutes: Int = 60, // Menit sebelum sholat
+    val powerSavingPostMinutes: Int = 60 // Menit setelah sholat
 )

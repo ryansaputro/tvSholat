@@ -94,7 +94,7 @@ fun DashboardHomeScreen(
                     com.masjid.tvsholat.ui.components.MasjidLogo(
                         config = config,
                         size = 64.dp,
-                        modifier = Modifier.padding(end = 20.dp)
+                        modifier = Modifier.padding(end = 10.dp)
                     )
                     
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {

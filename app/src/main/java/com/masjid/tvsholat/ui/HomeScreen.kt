@@ -197,7 +197,6 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
     } else {
         false
     }
-
     // 🔥 LOGIC ISLAMIC EVENT (H-1 & Hari H)
     // Cek apakah hari ini atau besok ada event penting
     val todayEvent = remember(todayKey) { HijriCalendar.getEvent(now) }
@@ -209,14 +208,10 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
     val isEventTomorrow = (todayEvent == null && upcomingEvent != null)
     
     val isEventPeriod = canShowRotation && activeEvent != null &&
-                        (now.time / 1000 % 60) in 15L until 30L // Tampil di detik 15-30 (barengan/gantian sama Hadits?)
-    // Note: To make it clean, let's slot it in.
-    // Treasury: 0-15s (if enabled)
-    // Hadith: 30-50s
-    // Info: 45s+
-    // Let's explicitly schedule it.
+                        (now.time / 1000 % 60) in 15L until 30L // Tampil di detik 15-30
     
     // REVISED SCHEDULE if Event exists:
+
     // Treasury: 0-10s
     // Event: 10-25s
     // Hadith: 25-40s
@@ -228,71 +223,123 @@ fun HomeScreen(repo: MasjidConfigRepository, deviceIp: String, appVersion: Strin
                           (now.time / 1000 / 60) % 2 == 0L && // Every even minute
                           (now.time / 1000 % 60) in 0L until 20L // First 20 seconds
 
-    ScreenBackground(
-        backgroundUrl = config.backgroundUrl,
-        backgroundType = config.backgroundType,
-        backgroundLocalPath = config.backgroundLocalPath
-    ) {
-        if (currentPrayerInAdzan != null) {
-            com.masjid.tvsholat.ui.components.AdzanScreen(
-                prayerName = currentPrayerInAdzan.name
-            )
-        } else if (currentPrayerInBlank != null) {
-            // 🔥 LAYAR HITAM (BLANK)
-            Box(modifier = Modifier.fillMaxSize().background(Color.Black))
-        } else if (currentPrayerInIqomah != null) {
-            val prayerStart = currentPrayerInIqomah.date.time
-            val iqomahStart = prayerStart + totalDelayMillis
-            val mins = getIqomahMinutes(currentPrayerInIqomah.name)
-            val iqomahEnd = iqomahStart + (mins * 60 * 1000)
-            val remainingMillis = iqomahEnd - now.time
-
-            IqomahScreen(
-                prayerName = currentPrayerInIqomah.name,
-                timeLeftMillis = remainingMillis
-            )
-        } else if (currentPrayerInSholat != null) {
-            // 🔥 LAYAR HITAM SAAT SHOLAT
-            Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-                // Opsional: Kasih teks halus biar gak dikira TV mati total
-                Text(
-                    text = "Layar Standby Sholat ${currentPrayerInSholat.name}",
-                    color = Color.DarkGray, // Subtle but visible
-                    fontSize = 12.sp,
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(20.dp)
-                )
+    // --- MODE HEMAT DAYA (STANDBY) ---
+    // --- MODE HEMAT DAYA (STANDBY) ---
+    val isDisplayActive = remember(now, prayers, config.enablePowerSaving, config.powerSavingPreMinutes, config.powerSavingPostMinutes, config.enableTarhim) {
+        if (!config.enablePowerSaving) return@remember true
+        
+        prayers.any { prayer ->
+            val prayerTime = prayer.date.time
+            val preDuration = config.powerSavingPreMinutes * 60 * 1000L
+            val postDuration = config.powerSavingPostMinutes * 60 * 1000L
+            
+            when (prayer.name) {
+                "MAGHRIB" -> {
+                    // Maghrib starts [preDuration] before and stays on until Isya + [postDuration]
+                    val isya = prayers.find { it.name == "ISYA" }
+                    val displayStart = prayerTime - preDuration
+                    val displayEnd = (isya?.date?.time ?: prayerTime) + postDuration
+                    now.time in displayStart until displayEnd
+                }
+                "ISYA" -> {
+                    // Already handled by Maghrib block for continuity, but keep for safety
+                    val displayStart = prayerTime - preDuration
+                    val displayEnd = prayerTime + postDuration
+                    now.time in displayStart until displayEnd
+                }
+                "IMSAK" -> {
+                    // Tarhim period: Imsak to Subuh
+                    if (config.enableTarhim) {
+                        val subuh = prayers.find { it.name == "SUBUH" }
+                        now.time in prayerTime until (subuh?.date?.time ?: prayerTime)
+                    } else false
+                }
+                "TERBIT" -> false // Sunrise doesn't trigger wake
+                else -> {
+                    // SUBUH, DZUHUR, ASHAR
+                    now.time in (prayerTime - preDuration) until (prayerTime + postDuration)
+                }
             }
-        } else if (isTarhimPeriod) {
-            // 🔥 SHOLAWAT TARHIM (Saat Imsak)
-            val subuh = prayers.find { it.name == "SUBUH" }
-            TarhimScreen(config = config, subuhTime = subuh?.date, now = now)
-        } else if (showEventScreen && activeEvent != null) {
-            // 🔥 PERINGATAN HARI BESAR ISLAM (Prioritas Tinggi)
-            com.masjid.tvsholat.ui.components.IslamicEventScreen(
-                config = config,
-                event = activeEvent,
-                isTomorrow = isEventTomorrow,
-                now = now
+        }
+    }
+
+    if (config.enablePowerSaving && !isDisplayActive) {
+        // 🔥 TV STANDBY (Layar Hitam Total)
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+            // Indikator sangat halus biar gak dikira TV mati
+            Text(
+                text = ".",
+                color = Color(0xFF050505),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(5.dp)
             )
-        } else if (isTreasuryPeriod) {
-            // 🔥 LAPORAN KAS
-            TreasuryScreen(config = config)
-        } else if (isHadithPeriod) {
-            // 🔥 HADITS HARIAN
-            HadithScreen(config = config, now = now)
-        } else if (isInfoPeriod && config.infoItems.isNotEmpty()) {
-            // 🔥 PAPAN INFORMASI
-            com.masjid.tvsholat.ui.components.InfoScreen(config = config, now = now)
-        } else {
-            // 🔥 PILIH TEMA DISINI
-            when (config.themeName) {
-                "modern" -> ModernHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
-                "elegant" -> ElegantHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
-                "classic" -> ClassicHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
-                "dashboard" -> DashboardHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
-                "grand" -> GrandHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
-                "premium" -> PremiumHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
-                else -> SimpleHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
+        }
+    } else {
+        ScreenBackground(
+            backgroundUrl = config.backgroundUrl,
+            backgroundType = config.backgroundType,
+            backgroundLocalPath = config.backgroundLocalPath
+        ) {
+            if (currentPrayerInAdzan != null) {
+                com.masjid.tvsholat.ui.components.AdzanScreen(
+                    prayerName = currentPrayerInAdzan.name
+                )
+            } else if (currentPrayerInBlank != null) {
+                // 🔥 LAYAR HITAM (BLANK)
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black))
+            } else if (currentPrayerInIqomah != null) {
+                val prayerStart = currentPrayerInIqomah.date.time
+                val iqomahStart = prayerStart + totalDelayMillis
+                val mins = getIqomahMinutes(currentPrayerInIqomah.name)
+                val iqomahEnd = iqomahStart + (mins * 60 * 1000)
+                val remainingMillis = iqomahEnd - now.time
+
+                IqomahScreen(
+                    prayerName = currentPrayerInIqomah.name,
+                    timeLeftMillis = remainingMillis
+                )
+            } else if (currentPrayerInSholat != null) {
+                // 🔥 LAYAR HITAM SAAT SHOLAT
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+                    // Opsional: Kasih teks halus biar gak dikira TV mati total
+                    Text(
+                        text = "Layar Standby Sholat ${currentPrayerInSholat.name}",
+                        color = Color.DarkGray, // Subtle but visible
+                        fontSize = 12.sp,
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(20.dp)
+                    )
+                }
+            } else if (isTarhimPeriod) {
+                // 🔥 SHOLAWAT TARHIM (Saat Imsak)
+                val subuh = prayers.find { it.name == "SUBUH" }
+                TarhimScreen(config = config, subuhTime = subuh?.date, now = now)
+            } else if (showEventScreen && activeEvent != null) {
+                // 🔥 PERINGATAN HARI BESAR ISLAM (Prioritas Tinggi)
+                com.masjid.tvsholat.ui.components.IslamicEventScreen(
+                    config = config,
+                    event = activeEvent,
+                    isTomorrow = isEventTomorrow,
+                    now = now
+                )
+            } else if (isTreasuryPeriod) {
+                // 🔥 LAPORAN KAS
+                TreasuryScreen(config = config)
+            } else if (isHadithPeriod) {
+                // 🔥 HADITS HARIAN
+                HadithScreen(config = config, now = now)
+            } else if (isInfoPeriod && config.infoItems.isNotEmpty()) {
+                // 🔥 PAPAN INFORMASI
+                com.masjid.tvsholat.ui.components.InfoScreen(config = config, now = now)
+            } else {
+                // 🔥 PILIH TEMA DISINI
+                when (config.themeName) {
+                    "modern" -> ModernHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
+                    "elegant" -> ElegantHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
+                    "classic" -> ClassicHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
+                    "dashboard" -> DashboardHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
+                    "grand" -> GrandHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
+                    "premium" -> PremiumHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
+                    else -> SimpleHomeScreen(now, config, appVersion, deviceIp, prayers, nextPrayer)
+                }
             }
         }
     }

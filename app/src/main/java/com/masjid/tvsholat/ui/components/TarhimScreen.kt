@@ -65,7 +65,7 @@ fun TarhimScreen(
         else -> config.tarhimAudioUrl
     }
 
-    if (audioSource.isNotEmpty()) {
+    if (audioSource.isNotEmpty() && config.isTimeMaster) {
         DisposableEffect(audioSource) {
             android.util.Log.d("TARHIM_SCREEN", "Starting audio: $audioSource")
             val mediaPlayer = try {
@@ -105,6 +105,8 @@ fun TarhimScreen(
                 }
             }
         }
+    } else if (audioSource.isNotEmpty() && !config.isTimeMaster) {
+        android.util.Log.d("TARHIM_SCREEN", "Skip audio playback: Device is SLAVE")
     }
 
     Box(

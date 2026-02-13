@@ -1,6 +1,7 @@
 package com.masjid.tvsholat.ui.components
 
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -36,8 +37,9 @@ fun MasjidLogo(
                 .crossfade(true)
                 .build(),
             contentDescription = "Logo Masjid",
-            modifier = modifier.size(size),
-            contentScale = ContentScale.Fit
+            modifier = modifier.height(size), // Fix height, allow width to scale (Responsive aspect ratio)
+            contentScale = ContentScale.Fit,
+            alignment = androidx.compose.ui.Alignment.Center
         )
     }
 }
