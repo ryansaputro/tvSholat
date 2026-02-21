@@ -14,6 +14,14 @@ object TimeRepository {
     @Volatile
     private var timeOffsetMillis: Long = 0L
 
+    // Flag to indicate if the time was restored from storage and might be inaccurate
+    var isTimeUnreliable: Boolean = false
+        private set
+
+    // Timestamp of the last activity on the Admin Panel
+    @Volatile
+    var lastAdminActivityTime: Long = 0L
+
     /**
      * Gets the current synchronized time.
      * @param manualOffsetMinutes Additional manual offset from Config (optional)
@@ -46,6 +54,7 @@ object TimeRepository {
         // Kalo bedanya gede (> 2 detik), langsung sinkron biar gak kelamaan.
         if (timeOffsetMillis == 0L || abs(newOffset - timeOffsetMillis) > 2000) {
             timeOffsetMillis = newOffset
+            isTimeUnreliable = false // Sync confirmed, time is now reliable
             android.util.Log.d("TimeRepository", "Heavy Sync: Offset set to $newOffset ms (RTT: $roundTripLatency)")
         } else {
             // Weighted average: 80% old, 20% new untuk mencegah jitter

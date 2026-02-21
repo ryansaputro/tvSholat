@@ -20,10 +20,7 @@ import com.masjid.tvsholat.domain.model.PrayerTime
 import java.text.SimpleDateFormat
 import java.util.*
 
-import java.time.LocalDate
-import java.time.chrono.HijrahDate
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import com.masjid.tvsholat.utils.HijriCalendar
 
 import com.masjid.tvsholat.ui.components.RunningText
 
@@ -34,16 +31,15 @@ fun ClassicHomeScreen(
     appVersion: String,
     deviceIp: String,
     prayers: List<PrayerTime>,
-    nextPrayer: PrayerTime?
+    nextPrayer: PrayerTime?,
+    runningText: String
 ) {
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     val dateFormat = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.forLanguageTag("id"))
     
-    // Hijri Logic
-    val localDate = now.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
-    val hijri = HijrahDate.from(localDate)
-    val hijriFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.forLanguageTag("id"))
-    val hijriFormatted = hijri.format(hijriFormatter) + " H"
+    // Hijri Logic using local utility (API 24 compatible)
+    val hijri = HijriCalendar.toHijri(now)
+    val hijriFormatted = "${hijri.day} ${hijri.getMonthName()} ${hijri.year} H"
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -55,14 +51,15 @@ fun ClassicHomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Top Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFF1B5E20), RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                    .padding(20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF1B5E20), RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                        .padding(20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                 Row(
                     modifier = Modifier.weight(1.1f),
                     verticalAlignment = Alignment.CenterVertically
@@ -109,6 +106,7 @@ fun ClassicHomeScreen(
                     Text(dateFormat.format(now), color = Color.White, fontSize = 13.sp, softWrap = false)
                     Text(hijriFormatted, color = Color(0xFFFFD54F), fontSize = 13.sp, fontWeight = FontWeight.Bold, softWrap = false)
                 }
+                }
             }
 
             // Main Content Area
@@ -121,7 +119,7 @@ fun ClassicHomeScreen(
             ) {
                 Row(modifier = Modifier.fillMaxSize()) {
                     prayers.forEachIndexed { index, prayer ->
-                        val isNext = prayer == nextPrayer
+                        val isNext = prayer.name == nextPrayer?.name
                         
                         Column(
                             modifier = Modifier
@@ -205,6 +203,6 @@ fun ClassicHomeScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
         // Anti Burn-in
-        RunningText(text = config.runningText)
+        RunningText(text = runningText)
     }
 }

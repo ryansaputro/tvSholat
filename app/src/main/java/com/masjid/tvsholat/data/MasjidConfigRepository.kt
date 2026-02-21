@@ -103,6 +103,8 @@ class MasjidConfigRepository private constructor(context: Context) {
             .putBoolean("enable_power_saving", config.enablePowerSaving)
             .putInt("power_saving_pre", config.powerSavingPreMinutes)
             .putInt("power_saving_post", config.powerSavingPostMinutes)
+            .putBoolean("keep_awake_on_internet", config.keepAwakeOnInternet)
+            .putString("admin_chat_id", config.adminChatId)
             .commit() // 🔥 PAKE COMMIT BIAR SINCRONOUS (Sync ke Disk)
     }
 
@@ -190,7 +192,9 @@ class MasjidConfigRepository private constructor(context: Context) {
             latestApkLocalPath = prefs.getString("latest_apk_local_path", "") ?: "",
             enablePowerSaving = prefs.getBoolean("enable_power_saving", false),
             powerSavingPreMinutes = prefs.getInt("power_saving_pre", 60),
-            powerSavingPostMinutes = prefs.getInt("power_saving_post", 60)
+            powerSavingPostMinutes = prefs.getInt("power_saving_post", 60),
+            keepAwakeOnInternet = prefs.getBoolean("keep_awake_on_internet", false),
+            adminChatId = prefs.getString("admin_chat_id", "") ?: ""
         )
     }
 }

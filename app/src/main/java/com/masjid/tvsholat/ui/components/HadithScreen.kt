@@ -50,7 +50,7 @@ val hadithList = listOf(
 )
 
 @Composable
-fun HadithScreen(config: MasjidConfig, now: Date) {
+fun HadithScreen(config: MasjidConfig, now: Date, runningText: String) {
     // Pick a random hadith every time the screen is shown
     val hadith = remember { hadithList.random() }
 
@@ -142,6 +142,6 @@ fun HadithScreen(config: MasjidConfig, now: Date) {
         }
         
         // Anti Burn-in
-        RunningText(text = config.runningText)
+        RunningText(text = runningText)
     }
 }

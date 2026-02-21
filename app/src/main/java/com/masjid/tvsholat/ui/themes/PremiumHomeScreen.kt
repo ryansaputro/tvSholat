@@ -29,7 +29,8 @@ fun PremiumHomeScreen(
     appVersion: String,
     deviceIp: String,
     prayers: List<PrayerTime>,
-    nextPrayer: PrayerTime?
+    nextPrayer: PrayerTime?,
+    runningText: String
 ) {
     val hijri = remember(now) { HijriCalendar.toHijri(now) }
     
@@ -176,7 +177,7 @@ fun PremiumHomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 prayers.forEach { prayer ->
-                    val isNext = prayer == nextPrayer
+                    val isNext = prayer.name == nextPrayer?.name
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -228,7 +229,7 @@ fun PremiumHomeScreen(
                 )
                 Spacer(modifier = Modifier.width(24.dp))
                 Box(modifier = Modifier.weight(1f)) {
-                    RunningText(text = config.runningText)
+                    RunningText(text = runningText)
                 }
                 Spacer(modifier = Modifier.width(24.dp))
                 Text(

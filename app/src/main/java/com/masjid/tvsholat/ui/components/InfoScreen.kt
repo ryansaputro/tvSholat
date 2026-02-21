@@ -30,7 +30,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun InfoScreen(config: MasjidConfig, now: Date) {
+fun InfoScreen(config: MasjidConfig, now: Date, runningText: String) {
     // Filter out empty items to prevent rendering issues
     val items = config.infoItems.filter { it.content.isNotEmpty() }
     var currentIndex by remember { mutableIntStateOf(0) }
@@ -288,7 +288,7 @@ fun InfoScreen(config: MasjidConfig, now: Date) {
             
             // Running Text at the very bottom, hide if fullscreen image
             if (!isFullscreen) {
-                RunningText(text = config.runningText)
+                RunningText(text = runningText)
             }
         }
     }

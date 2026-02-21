@@ -25,7 +25,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         // 🔥 BIAR LAYAR GAK MATI (STANDBY TERUS)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
@@ -77,8 +77,19 @@ class MainActivity : ComponentActivity() {
                     onDispose { activationService.stopPolling() }
                 }
                 
-                ActivationScreen(deviceId = activationService.getDeviceId())
+                ActivationScreen(
+                    deviceId = activationService.getDeviceId(),
+                    onRefresh = { activationService.refreshStatus() }
+                )
             } else {
+                // 🔥 BACKGROUND POLLING (Cari adminChatId kalau belum ada)
+                if (config.adminChatId.isEmpty()) {
+                    DisposableEffect(Unit) {
+                        activationService.startPolling()
+                        onDispose { activationService.stopPolling() }
+                    }
+                }
+                
                 // --- MAIN APP FLOW ---
                 if (showSplash) {
                     com.masjid.tvsholat.ui.components.SplashScreen(onFinished = {

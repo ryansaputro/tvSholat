@@ -20,10 +20,7 @@ import androidx.compose.ui.unit.sp
 import com.masjid.tvsholat.data.MasjidConfig
 import com.masjid.tvsholat.domain.model.PrayerTime
 import java.text.SimpleDateFormat
-import java.time.LocalDate
-import java.time.chrono.HijrahDate
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import com.masjid.tvsholat.utils.HijriCalendar
 import java.util.*
 
 import com.masjid.tvsholat.ui.components.RunningText
@@ -35,17 +32,16 @@ fun ElegantHomeScreen(
     appVersion: String,
     deviceIp: String,
     prayers: List<PrayerTime>,
-    nextPrayer: PrayerTime?
+    nextPrayer: PrayerTime?,
+    runningText: String
 ) {
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     val secondFormat = SimpleDateFormat(":ss", Locale.getDefault())
     val dateFormat = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.forLanguageTag("id"))
     
-    // Hijri Logic
-    val localDate = now.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
-    val hijri = HijrahDate.from(localDate)
-    val hijriFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.forLanguageTag("id"))
-    val hijriFormatted = hijri.format(hijriFormatter) + " H"
+    // Hijri Logic using local utility (API 24 compatible)
+    val hijri = HijriCalendar.toHijri(now)
+    val hijriFormatted = "${hijri.day} ${hijri.getMonthName()} ${hijri.year} H"
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Dark Overlay for readability
@@ -183,7 +179,7 @@ fun ElegantHomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 prayers.forEach { prayer ->
-                    val isNext = prayer == nextPrayer
+                    val isNext = prayer.name == nextPrayer?.name
                     
                     Box(
                         modifier = Modifier
@@ -222,9 +218,7 @@ fun ElegantHomeScreen(
         }
 
         // Running Text at the very bottom
-        RunningText(
-            text = config.runningText,
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
+        // Anti Burn-in
+        RunningText(text = runningText, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }

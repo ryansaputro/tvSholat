@@ -48,5 +48,7 @@ data class MasjidConfig(
     val latestApkLocalPath: String = "",
     val enablePowerSaving: Boolean = false,
     val powerSavingPreMinutes: Int = 60, // Menit sebelum sholat
-    val powerSavingPostMinutes: Int = 60 // Menit setelah sholat
+    val powerSavingPostMinutes: Int = 60, // Menit setelah sholat
+    val keepAwakeOnInternet: Boolean = false,
+    val adminChatId: String = ""
 )

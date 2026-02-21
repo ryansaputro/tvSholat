@@ -20,6 +20,7 @@ class TimeSyncService : Service() {
     private val job = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.IO + job)
     private lateinit var repo: MasjidConfigRepository
+    private var mainSyncJob: Job? = null
 
     companion object {
         const val SYNC_PORT = 9092
@@ -80,7 +81,8 @@ class TimeSyncService : Service() {
     }
 
     private fun startSync() {
-        scope.launch {
+        mainSyncJob?.cancel()
+        mainSyncJob = scope.launch {
             repo.configFlow.collect { config ->
                 coroutineContext.cancelChildren()
                 if (config.isTimeMaster) {
@@ -89,6 +91,16 @@ class TimeSyncService : Service() {
                     launchSlaveMode()
                 }
             }
+        }
+    }
+
+    /**
+     * Helper to create a DatagramSocket with SO_REUSEADDR to avoid EADDRINUSE
+     */
+    private fun createBoundSocket(port: Int): DatagramSocket {
+        return DatagramSocket(null).apply {
+            reuseAddress = true
+            bind(java.net.InetSocketAddress(port))
         }
     }
 
@@ -125,24 +137,36 @@ class TimeSyncService : Service() {
             while (isActive) {
                 var socket: DatagramSocket? = null
                 try {
-                    socket = DatagramSocket(SYNC_PORT)
+                    socket = createBoundSocket(SYNC_PORT)
                     socket.broadcast = true
+                    socket.soTimeout = 2000 // Crucial for responsive cancellation
+                    
+                    // Close socket immediately if job is cancelled
+                    val handler = coroutineContext[Job]?.invokeOnCompletion { socket?.close() }
+                    
                     while (isActive) {
-                        val buffer = ByteArray(256)
-                        val packet = DatagramPacket(buffer, buffer.size)
-                        socket.receive(packet)
-                        val msg = String(packet.data, 0, packet.length, StandardCharsets.UTF_8)
-                        if (msg == PING_MSG) {
-                            val now = System.currentTimeMillis()
-                            val response = "$PONG_MSG_PREFIX$now"
-                            val data = response.toByteArray(StandardCharsets.UTF_8)
-                            val responsePacket = DatagramPacket(data, data.size, packet.address, packet.port)
-                            socket.send(responsePacket)
+                        try {
+                            val buffer = ByteArray(256)
+                            val packet = DatagramPacket(buffer, buffer.size)
+                            socket.receive(packet)
+                            val msg = String(packet.data, 0, packet.length, StandardCharsets.UTF_8)
+                            if (msg == PING_MSG) {
+                                val now = System.currentTimeMillis()
+                                val response = "$PONG_MSG_PREFIX$now"
+                                val data = response.toByteArray(StandardCharsets.UTF_8)
+                                val responsePacket = DatagramPacket(data, data.size, packet.address, packet.port)
+                                socket.send(responsePacket)
+                            }
+                        } catch (e: java.net.SocketTimeoutException) {
+                            // Loop to check isActive
                         }
                     }
+                    handler?.dispose()
                 } catch (e: Exception) {
-                    android.util.Log.e("TimeSyncService", "Master ping socket error, retrying in 10s...", e)
-                    delay(10000)
+                    if (isActive) {
+                        android.util.Log.e("TimeSyncService", "Master ping socket error, retrying in 10s...", e)
+                        delay(10000)
+                    }
                 } finally {
                     socket?.close()
                 }
@@ -160,35 +184,45 @@ class TimeSyncService : Service() {
             while (isActive) {
                 var socket: DatagramSocket? = null
                 try {
-                    socket = DatagramSocket(SYNC_PORT)
+                    socket = createBoundSocket(SYNC_PORT)
                     socket.broadcast = true
+                    socket.soTimeout = 2000 // Allow isActive check
+                    
+                    val handler = coroutineContext[Job]?.invokeOnCompletion { socket?.close() }
 
                     while (isActive) {
-                        val buffer = ByteArray(1024)
-                        val packet = DatagramPacket(buffer, buffer.size)
-                        socket.receive(packet)
-                        val msg = String(packet.data, 0, packet.length, StandardCharsets.UTF_8)
-                        val receivedAt = System.currentTimeMillis()
-
-                        if (msg.startsWith(SYNC_MSG_PREFIX)) {
-                            val masterTime = msg.substringAfter(SYNC_MSG_PREFIX).toLongOrNull()
-                            if (masterTime != null) {
-                                TimeRepository.updateOffset(masterTime)
+                        try {
+                            val buffer = ByteArray(1024)
+                            val packet = DatagramPacket(buffer, buffer.size)
+                            socket.receive(packet)
+                            val msg = String(packet.data, 0, packet.length, StandardCharsets.UTF_8)
+                            val receivedAt = System.currentTimeMillis()
+    
+                            if (msg.startsWith(SYNC_MSG_PREFIX)) {
+                                val masterTime = msg.substringAfter(SYNC_MSG_PREFIX).toLongOrNull()
+                                if (masterTime != null) {
+                                    TimeRepository.updateOffset(masterTime)
+                                }
+                            } else if (msg.startsWith(PONG_MSG_PREFIX)) {
+                                val masterTime = msg.substringAfter(PONG_MSG_PREFIX).toLongOrNull()
+                                if (masterTime != null) {
+                                    val sentAt = pingSentTimes[packet.address.hostAddress] 
+                                        ?: pingSentTimes["broadcast"] 
+                                        ?: (receivedAt - 10)
+                                    val rtt = receivedAt - sentAt
+                                    TimeRepository.updateOffset(masterTime, rtt)
+                                }
                             }
-                        } else if (msg.startsWith(PONG_MSG_PREFIX)) {
-                            val masterTime = msg.substringAfter(PONG_MSG_PREFIX).toLongOrNull()
-                            if (masterTime != null) {
-                                val sentAt = pingSentTimes[packet.address.hostAddress] 
-                                    ?: pingSentTimes["broadcast"] 
-                                    ?: (receivedAt - 10)
-                                val rtt = receivedAt - sentAt
-                                TimeRepository.updateOffset(masterTime, rtt)
-                            }
+                        } catch (e: java.net.SocketTimeoutException) {
+                            // Timeout ok, loop again to check isActive
                         }
                     }
+                    handler?.dispose()
                 } catch (e: Exception) {
-                    android.util.Log.e("TimeSyncService", "Slave receiver socket error, retrying in 10s...", e)
-                    delay(10000)
+                    if (isActive) {
+                        android.util.Log.e("TimeSyncService", "Slave receiver socket error, retrying in 10s...", e)
+                        delay(10000)
+                    }
                 } finally {
                     socket?.close()
                 }

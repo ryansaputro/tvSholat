@@ -21,7 +21,7 @@ import com.masjid.tvsholat.utils.IslamicEvent
 import java.util.Date
 
 @Composable
-fun IslamicEventScreen(config: MasjidConfig, event: IslamicEvent, isTomorrow: Boolean, now: Date) {
+fun IslamicEventScreen(config: MasjidConfig, event: IslamicEvent, isTomorrow: Boolean, now: Date, runningText: String) {
     
     val hijriDate = HijriCalendar.toHijri(if (isTomorrow) Date(now.time + 24*3600000) else now)
     
@@ -113,6 +113,6 @@ fun IslamicEventScreen(config: MasjidConfig, event: IslamicEvent, isTomorrow: Bo
         }
         
         // Anti Burn-in
-        RunningText(text = config.runningText)
+        RunningText(text = runningText)
     }
 }

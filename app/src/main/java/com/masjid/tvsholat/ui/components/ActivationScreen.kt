@@ -23,7 +23,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 
 @Composable
-fun ActivationScreen(deviceId: String, botUsername: String = "TvSholatBot") {
+fun ActivationScreen(
+    deviceId: String, 
+    botUsername: String = "TvSholatBot",
+    onRefresh: () -> Unit = {}
+) {
     val botUrl = "https://t.me/$botUsername?start=$deviceId"
     val qrBitmap = remember(botUrl) { generateQRCode(botUrl, 400) }
 
@@ -123,6 +127,21 @@ fun ActivationScreen(deviceId: String, botUsername: String = "TvSholatBot") {
                 style = MaterialTheme.typography.labelLarge,
                 color = DeepGreen.copy(alpha = 0.5f)
             )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Button(
+                onClick = onRefresh,
+                colors = ButtonDefaults.buttonColors(containerColor = Gold),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "CEK STATUS AKTIVASI",
+                    color = DeepGreen,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }

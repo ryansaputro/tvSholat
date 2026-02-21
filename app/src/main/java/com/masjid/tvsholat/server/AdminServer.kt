@@ -26,6 +26,7 @@ class AdminServer private constructor(
 ) : NanoHTTPD(null, 9090) {
 
     private val networkDiscovery = NetworkDiscovery(context)
+    private val activationService = com.masjid.tvsholat.domain.service.ActivationService(context, repo)
 
     companion object {
         private var instance: AdminServer? = null
@@ -97,6 +98,9 @@ class AdminServer private constructor(
             response.addHeader("WWW-Authenticate", "Basic realm=\"Admin Panel TvSholat\"")
             return response
         }
+
+        // 🔥 RECORD ADMIN ACTIVITY (Keep screen on for 5 mins after last request)
+        TimeRepository.lastAdminActivityTime = System.currentTimeMillis()
         
         // --- 3. PROTECTED ENDPOINTS ---
         return when (uri) {
@@ -309,6 +313,7 @@ class AdminServer private constructor(
                         <div class="form-group">
                             <label>Tema Tampilan</label>
                             <select name="theme_name">
+                                <option value="focus" ${if (config.themeName == "focus") "selected" else ""}>👁️ Focus & Large (No Seconds)</option>
                                 <option value="simple" ${if (config.themeName == "simple") "selected" else ""}>🌿 Simple Clean (Default)</option>
                                 <option value="modern" ${if (config.themeName == "modern") "selected" else ""}>💎 Modern Sleek</option>
                                 <option value="elegant" ${if (config.themeName == "elegant") "selected" else ""}>✨ Elegant Premium (Big Font)</option>
@@ -414,6 +419,9 @@ class AdminServer private constructor(
                                 <label style="font-size: 11px; color: #555; font-weight: 600; display: block; margin-bottom: 5px;">Suara Sholawat Tarhim (Optional)</label>
                                 <div style="display: flex; gap: 15px; margin-bottom: 8px;">
                                     <label style="font-weight: 400; font-size: 11px; cursor: pointer; display: flex; align-items: center;">
+                                        <input type="radio" name="tarhim_audio_type" value="default" ${if (config.tarhimAudioType == "default" || config.tarhimAudioType.isEmpty()) "checked" else ""} onchange="toggleTarhimAudioInput()" style="width: auto; margin-right: 5px;"> Bawaan (Lokal)
+                                    </label>
+                                    <label style="font-weight: 400; font-size: 11px; cursor: pointer; display: flex; align-items: center;">
                                         <input type="radio" name="tarhim_audio_type" value="url" ${if (config.tarhimAudioType == "url") "checked" else ""} onchange="toggleTarhimAudioInput()" style="width: auto; margin-right: 5px;"> URL
                                     </label>
                                     <label style="font-weight: 400; font-size: 11px; cursor: pointer; display: flex; align-items: center;">
@@ -427,7 +435,7 @@ class AdminServer private constructor(
                                     <input type="file" name="tarhim_audio_file" accept="audio/*" style="font-size: 11px;">
                                     ${if (config.tarhimAudioLocalPath.isNotEmpty()) """<div style="font-size: 10px; color: #2e7d32; margin-top: 4px;">✅ File tersimpan secara lokal</div>""" else ""}
                                 </div>
-                                <input type="hidden" name="tarhim_audio_local_path" value="${config.tarhimAudioLocalPath}">
+                                <input type="hidden" name="tarhim_audio_local_path" id="tarhimAudioLocalPath" value="${config.tarhimAudioLocalPath}">
                             </div>
                         </div>
 
@@ -516,6 +524,13 @@ class AdminServer private constructor(
                             </div>
                         </div>
                         <div style="margin-top: 15px; border-top: 1px dashed #eee; padding-top: 15px;">
+                            <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+                                <label style="font-size: 13px; color: #555;">Status Perangkat:</label>
+                                <span style="font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 4px; background: ${if (config.isTimeMaster) "#e3f2fd" else "#f5f5f5"}; color: ${if (config.isTimeMaster) "#1565c0" else "#616161"}; border: 1px solid ${if (config.isTimeMaster) "#90caf9" else "#e0e0e0"};">
+                                    ${if (config.isTimeMaster) "👑 MASTER (Pusat Waktu)" else "📡 SLAVE (Mengikuti Master)"}
+                                </span>
+                            </div>
+                            
                             <label style="display: flex; align-items: center; cursor: pointer;">
                                 <input type="checkbox" name="is_time_master" style="width: auto; margin-right: 10px;" value="true" ${if (config.isTimeMaster) "checked" else ""}>
                                 <div>
@@ -542,6 +557,16 @@ class AdminServer private constructor(
                                     <label style="font-size: 11px; color: #555;">Nyala SETELAH Sholat (Menit)</label>
                                     <input type="number" name="power_saving_post" value="${config.powerSavingPostMinutes}" placeholder="Default: 60" style="padding: 6px 10px; font-size: 12px;">
                                 </div>
+                            </div>
+
+                            <div style="margin-top: 15px; padding-left: 10px; border-top: 1px dashed #eee; padding-top: 10px;">
+                                <label style="display: flex; align-items: center; cursor: pointer;">
+                                    <input type="checkbox" name="keep_awake_on_internet" style="width: auto; margin-right: 10px;" value="true" ${if (config.keepAwakeOnInternet) "checked" else ""}>
+                                    <div>
+                                        <span style="font-weight: 600; display: block; font-size: 13px;">Selalu Nyala jika Konek Internet</span>
+                                        <span style="font-size: 11px; color: #666; font-weight: normal;">Layar tidak akan standby selama kabel LAN/Wifi terhubung (Otomatis nyala).</span>
+                                    </div>
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -1083,6 +1108,7 @@ class AdminServer private constructor(
                     enablePowerSaving = enablePowerSavingVal,
                     powerSavingPreMinutes = p["power_saving_pre"]?.firstOrNull()?.takeIf { it.isNotBlank() }?.toIntOrNull() ?: 60,
                     powerSavingPostMinutes = p["power_saving_post"]?.firstOrNull()?.takeIf { it.isNotBlank() }?.toIntOrNull() ?: 60,
+                    keepAwakeOnInternet = p["keep_awake_on_internet"]?.firstOrNull() == "true" || p.containsKey("keep_awake_on_internet"),
                     name = p["name"]?.firstOrNull() ?: oldConfig.name,
                     address = p["address"]?.firstOrNull() ?: oldConfig.address,
                 latitude = p["lat"]?.firstOrNull()?.toDoubleOrNull() ?: oldConfig.latitude,
@@ -1116,8 +1142,8 @@ class AdminServer private constructor(
                 isActivated = pIsActivated,
                 deviceId = pDeviceId,
                 enableTarhim = p["enable_tarhim"]?.firstOrNull() == "true",
-                tarhimAudioUrl = p["tarhim_audio_url"]?.firstOrNull() ?: oldConfig.tarhimAudioUrl,
                 tarhimAudioType = p["tarhim_audio_type"]?.firstOrNull() ?: oldConfig.tarhimAudioType,
+                tarhimAudioUrl = if (p["tarhim_audio_type"]?.firstOrNull() == "url") (p["tarhim_audio_url"]?.firstOrNull() ?: "") else oldConfig.tarhimAudioUrl,
                 lastUpdated = SimpleDateFormat("d MMM yyyy HH:mm", Locale.forLanguageTag("id")).format(Date()),
                 infoItems = p["info_index"].orEmpty().map { strIndex ->
                     val index = strIndex.toIntOrNull()
@@ -1159,7 +1185,11 @@ class AdminServer private constructor(
                 }
             }
 
-            var finalAudioLocalPath = if (config.tarhimAudioType == "url") "" else config.tarhimAudioLocalPath
+            var finalAudioLocalPath = when (config.tarhimAudioType) {
+                "upload" -> config.tarhimAudioLocalPath
+                "url" -> ""
+                else -> "" // "default" reset paths
+            }
             if (config.tarhimAudioType == "upload" && files.containsKey("tarhim_audio_file")) {
                 files["tarhim_audio_file"]?.let { tempPath ->
                     val tempFile = File(tempPath)
@@ -1194,6 +1224,11 @@ class AdminServer private constructor(
             var syncStatus = ""
             runBlocking(Dispatchers.IO) {
                 repo.save(finalConfig)
+                
+                // --- TELEGRAM NOTIF ---
+                activationService.sendUpdateNotification(oldConfig, finalConfig, session.remoteIpAddress ?: "N/A")
+                // ---------------------
+                
                 if (p["sync_mode"]?.firstOrNull() == "broadcast" && !isFromSync) {
                     syncStatus = broadcastConfigToPeers(finalConfig)
                 }
@@ -1321,6 +1356,9 @@ class AdminServer private constructor(
                 infoDisplayInterval = jsonObj.optInt("infoDisplayInterval", oldConfig.infoDisplayInterval),
                 infoDisplayDuration = jsonObj.optInt("infoDisplayDuration", oldConfig.infoDisplayDuration),
                 enableTarhim = jsonObj.optBoolean("enableTarhim", oldConfig.enableTarhim),
+                enablePowerSaving = jsonObj.optBoolean("enablePowerSaving", oldConfig.enablePowerSaving),
+                powerSavingPreMinutes = jsonObj.optInt("powerSavingPreMinutes", oldConfig.powerSavingPreMinutes),
+                powerSavingPostMinutes = jsonObj.optInt("powerSavingPostMinutes", oldConfig.powerSavingPostMinutes),
                 logoUrl = jsonObj.optString("logoUrl", oldConfig.logoUrl),
                 logoType = jsonObj.optString("logoType", oldConfig.logoType),
                 logoLocalPath = jsonObj.optString("logoLocalPath", oldConfig.logoLocalPath),
@@ -1330,6 +1368,7 @@ class AdminServer private constructor(
                 latestApkVersionCode = jsonObj.optInt("latestApkVersionCode", oldConfig.latestApkVersionCode),
                 latestApkLocalPath = jsonObj.optString("latestApkLocalPath", oldConfig.latestApkLocalPath),
                 lastUpdated = jsonObj.optString("lastUpdated", oldConfig.lastUpdated),
+                keepAwakeOnInternet = jsonObj.optBoolean("keepAwakeOnInternet", oldConfig.keepAwakeOnInternet),
                 
                 // Parse InfoItems
                 infoItems = try {
@@ -1612,6 +1651,9 @@ class AdminServer private constructor(
                     put("infoDisplayInterval", config.infoDisplayInterval)
                     put("infoDisplayDuration", config.infoDisplayDuration)
                     put("enableTarhim", config.enableTarhim)
+                    put("enablePowerSaving", config.enablePowerSaving)
+                    put("powerSavingPreMinutes", config.powerSavingPreMinutes)
+                    put("powerSavingPostMinutes", config.powerSavingPostMinutes)
                     put("logoUrl", config.logoUrl)
                     put("logoType", config.logoType)
                     put("logoLocalPath", config.logoLocalPath)
@@ -1621,6 +1663,7 @@ class AdminServer private constructor(
                     put("latestApkVersionCode", config.latestApkVersionCode)
                     put("latestApkLocalPath", config.latestApkLocalPath)
                     put("lastUpdated", config.lastUpdated)
+                    put("keepAwakeOnInternet", config.keepAwakeOnInternet)
                     put("infoItems", JSONArray().apply {
                         config.infoItems.forEach { 
                             put(JSONObject().apply {

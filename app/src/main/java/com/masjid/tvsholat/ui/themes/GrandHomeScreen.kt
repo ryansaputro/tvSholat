@@ -17,9 +17,7 @@ import androidx.compose.ui.unit.sp
 import com.masjid.tvsholat.data.MasjidConfig
 import com.masjid.tvsholat.domain.model.PrayerTime
 import java.text.SimpleDateFormat
-import java.time.chrono.HijrahDate
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import com.masjid.tvsholat.utils.HijriCalendar
 import java.util.*
 import com.masjid.tvsholat.ui.components.RunningText
 import com.masjid.tvsholat.ui.components.QrPanel
@@ -31,17 +29,16 @@ fun GrandHomeScreen(
     appVersion: String,
     deviceIp: String,
     prayers: List<PrayerTime>,
-    nextPrayer: PrayerTime?
+    nextPrayer: PrayerTime?,
+    runningText: String
 ) {
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     val secondFormat = SimpleDateFormat(":ss", Locale.getDefault())
     val dateFormat = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.forLanguageTag("id"))
     
-    // Hijri Logic
-    val localDate = now.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
-    val hijri = HijrahDate.from(localDate)
-    val hijriFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.forLanguageTag("id"))
-    val hijriFormatted = hijri.format(hijriFormatter) + " H"
+    // Hijri Logic using local utility (API 24 compatible)
+    val hijri = HijriCalendar.toHijri(now)
+    val hijriFormatted = "${hijri.day} ${hijri.getMonthName()} ${hijri.year} H"
 
     // Use ScreenBackground for dynamic user-defined backgrounds
     com.masjid.tvsholat.ui.components.ScreenBackground(
@@ -72,7 +69,6 @@ fun GrandHomeScreen(
                     .padding(bottom = 60.dp), // Space for RunningText
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                
                 // --- HEADER ---
                 Row(
                     modifier = Modifier
@@ -131,7 +127,6 @@ fun GrandHomeScreen(
                     }
                 }
 
-                // --- CENTER CLOCK ---
                 Column(
                     modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -141,7 +136,7 @@ fun GrandHomeScreen(
                         Text(
                             text = timeFormat.format(now),
                             color = Color.White,
-                            fontSize = 130.sp, // Reduced to prevent cutting
+                            fontSize = 130.sp, // Restored original size
                             lineHeight = 130.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = (-4).sp,
@@ -150,7 +145,7 @@ fun GrandHomeScreen(
                         Text(
                             text = secondFormat.format(now),
                             color = Color(0xFFFFD54F), // Gold
-                            fontSize = 50.sp,
+                            fontSize = 50.sp, // Restored original size
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.alignByBaseline().padding(start = 8.dp)
                         )
@@ -207,11 +202,11 @@ fun GrandHomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp, vertical = 24.dp)
-                        .height(140.dp), // Fixed height for uniformity
+                        .height(140.dp), // Restored original fixed height
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     prayers.forEach { prayer ->
-                        val isNext = prayer == nextPrayer
+                        val isNext = prayer.name == nextPrayer?.name
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -275,7 +270,7 @@ fun GrandHomeScreen(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                RunningText(text = config.runningText)
+                RunningText(text = runningText)
             }
         }
     }

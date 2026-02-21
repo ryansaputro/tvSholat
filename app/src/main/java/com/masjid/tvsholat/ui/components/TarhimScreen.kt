@@ -28,7 +28,8 @@ import java.util.Date
 fun TarhimScreen(
     config: MasjidConfig,
     subuhTime: Date?,
-    now: Date
+    now: Date,
+    runningText: String
 ) {
     val tarhimParts = listOf(
         Pair(
@@ -60,52 +61,63 @@ fun TarhimScreen(
 
     // --- AUDIO PLAYBACK ---
     val context = LocalContext.current
-    val audioSource = when (config.tarhimAudioType) {
-        "upload" -> if (config.tarhimAudioLocalPath.isNotEmpty() && java.io.File(config.tarhimAudioLocalPath).exists()) config.tarhimAudioLocalPath else ""
-        else -> config.tarhimAudioUrl
-    }
+    
+    // Check sources in order: Upload > URL > Default Local
+    val localFile = if (config.tarhimAudioLocalPath.isNotEmpty()) java.io.File(config.tarhimAudioLocalPath) else null
+    val hasValidUpload = config.tarhimAudioType == "upload" && localFile != null && localFile.exists()
+    val hasValidUrl = config.tarhimAudioUrl.isNotEmpty()
 
-    if (audioSource.isNotEmpty() && config.isTimeMaster) {
-        DisposableEffect(audioSource) {
-            android.util.Log.d("TARHIM_SCREEN", "Starting audio: $audioSource")
-            val mediaPlayer = try {
-                if (audioSource.startsWith("/")) {
-                    val file = java.io.File(audioSource)
-                    if (file.exists()) {
-                        android.util.Log.d("TARHIM_SCREEN", "Playing local file: $audioSource")
-                        MediaPlayer().apply {
-                            setDataSource(audioSource)
-                            prepare()
-                            isLooping = true
-                            start()
-                        }
-                    } else {
-                        android.util.Log.e("TARHIM_SCREEN", "Local audio file not found: $audioSource")
-                        null
+    if (config.isTimeMaster) {
+        DisposableEffect(config.tarhimAudioLocalPath, config.tarhimAudioUrl, config.tarhimAudioType) {
+            val mediaPlayer = MediaPlayer()
+            
+            try {
+                when {
+                    hasValidUpload -> {
+                        android.util.Log.d("TARHIM_SCREEN", "Source: Uploaded File ($localFile)")
+                        mediaPlayer.setDataSource(config.tarhimAudioLocalPath)
                     }
-                } else {
-                    android.util.Log.d("TARHIM_SCREEN", "Playing remote audio: $audioSource")
-                    MediaPlayer.create(context, Uri.parse(audioSource))?.apply {
-                        isLooping = true
-                        start()
+                    hasValidUrl -> {
+                        android.util.Log.d("TARHIM_SCREEN", "Source: URL (${config.tarhimAudioUrl})")
+                        mediaPlayer.setDataSource(context, Uri.parse(config.tarhimAudioUrl))
+                    }
+                    else -> {
+                        android.util.Log.d("TARHIM_SCREEN", "Source: Default Local (R.raw.tarhim)")
+                        val afd = context.resources.openRawResourceFd(com.masjid.tvsholat.R.raw.tarhim)
+                        if (afd != null) {
+                            mediaPlayer.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                            afd.close()
+                        }
                     }
                 }
+
+                mediaPlayer.apply {
+                    isLooping = true
+                    setOnPreparedListener { 
+                        android.util.Log.d("TARHIM_SCREEN", "MediaPlayer Prepared. Starting playback.")
+                        it.start() 
+                    }
+                    setOnErrorListener { mp, what, extra ->
+                        android.util.Log.e("TARHIM_SCREEN", "MediaPlayer Error: $what, $extra")
+                        false
+                    }
+                    prepareAsync() // NON-BLOCKING
+                }
             } catch (e: Exception) {
-                android.util.Log.e("TARHIM_SCREEN", "Error playing audio: $audioSource", e)
-                null
+                android.util.Log.e("TARHIM_SCREEN", "MediaPlayer Setup Failed", e)
             }
             
             onDispose {
                 android.util.Log.d("TARHIM_SCREEN", "Disposing audio")
                 try {
-                    mediaPlayer?.stop()
-                    mediaPlayer?.release()
+                    if (mediaPlayer.isPlaying) mediaPlayer.stop()
+                    mediaPlayer.release()
                 } catch (e: Exception) {
                     // Ignore errors on release
                 }
             }
         }
-    } else if (audioSource.isNotEmpty() && !config.isTimeMaster) {
+    } else {
         android.util.Log.d("TARHIM_SCREEN", "Skip audio playback: Device is SLAVE")
     }
 
@@ -238,7 +250,7 @@ fun TarhimScreen(
         
         // Running Text at bottom
         Box(modifier = Modifier.align(Alignment.BottomCenter)) {
-            RunningText(text = config.runningText)
+            RunningText(text = runningText)
         }
     }
 }

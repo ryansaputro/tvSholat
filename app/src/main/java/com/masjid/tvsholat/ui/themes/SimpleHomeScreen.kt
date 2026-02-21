@@ -25,7 +25,8 @@ fun SimpleHomeScreen(
     appVersion: String,
     deviceIp: String,
     prayers: List<PrayerTime>,
-    nextPrayer: PrayerTime?
+    nextPrayer: PrayerTime?,
+    runningText: String
 ) {
     Column(
         modifier = Modifier.fillMaxSize()
@@ -59,7 +60,7 @@ fun SimpleHomeScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 prayers.forEach { prayer ->
-                    val isNext = prayer == nextPrayer
+                    val isNext = prayer.name == nextPrayer?.name
                     val bgColor = if (isNext) Color.White.copy(alpha = 0.15f) else Color.Transparent
                     val textColor = if (isNext) Color(0xFFFFD54F) else Color.White
                     val fontWeight = if (isNext) FontWeight.ExtraBold else FontWeight.Normal
@@ -134,6 +135,6 @@ fun SimpleHomeScreen(
         }
         
         // Anti Burn-in
-        RunningText(text = config.runningText)
+        RunningText(text = runningText)
     }
 }

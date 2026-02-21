@@ -17,10 +17,7 @@ import com.masjid.tvsholat.domain.model.PrayerTime
 import java.text.SimpleDateFormat
 import java.util.*
 
-import java.time.LocalDate
-import java.time.chrono.HijrahDate
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import com.masjid.tvsholat.utils.HijriCalendar
 
 import com.masjid.tvsholat.ui.components.RunningText
 
@@ -31,16 +28,15 @@ fun DashboardHomeScreen(
     appVersion: String,
     deviceIp: String,
     prayers: List<PrayerTime>,
-    nextPrayer: PrayerTime?
+    nextPrayer: PrayerTime?,
+    runningText: String
 ) {
     val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
     val dateFormat = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.forLanguageTag("id"))
 
-    // Hijri Logic
-    val localDate = now.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
-    val hijri = HijrahDate.from(localDate)
-    val hijriFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.forLanguageTag("id"))
-    val hijriFormatted = hijri.format(hijriFormatter) + " H"
+    // Hijri Logic using local utility (API 24 compatible)
+    val hijri = HijriCalendar.toHijri(now)
+    val hijriFormatted = "${hijri.day} ${hijri.getMonthName()} ${hijri.year} H"
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(modifier = Modifier.weight(1f)) {
@@ -54,7 +50,7 @@ fun DashboardHomeScreen(
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 prayers.forEach { prayer ->
-                    val isNext = prayer == nextPrayer
+                        val isNext = prayer.name == nextPrayer?.name
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -121,19 +117,19 @@ fun DashboardHomeScreen(
                     Text(
                         text = timeFormat.format(now),
                         color = Color.White,
-                        fontSize = 80.sp,
+                        fontSize = 80.sp, // Restored original size
                         fontWeight = FontWeight.Black
                     )
                     Text(
                         text = dateFormat.format(now),
                         color = Color.White,
-                        fontSize = 22.sp,
+                        fontSize = 22.sp, // Restored original size
                         fontWeight = FontWeight.Medium
                     )
                     Text(
                         text = hijriFormatted,
                         color = Color(0xFFFFD54F),
-                        fontSize = 20.sp,
+                        fontSize = 20.sp, // Restored original size
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -175,7 +171,7 @@ fun DashboardHomeScreen(
                     
                     com.masjid.tvsholat.ui.components.QrPanel(
                         content = "http://$deviceIp:9090",
-                        size = 120
+                        size = 120 // Restored original size
                     )
                 }
                 
@@ -183,6 +179,6 @@ fun DashboardHomeScreen(
             }
         }
         // Anti Burn-in
-        RunningText(text = config.runningText)
+        RunningText(text = runningText)
     }
 }

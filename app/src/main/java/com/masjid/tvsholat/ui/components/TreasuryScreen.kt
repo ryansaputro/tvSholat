@@ -26,7 +26,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
 
 @Composable
-fun TreasuryScreen(config: MasjidConfig) {
+fun TreasuryScreen(config: MasjidConfig, runningText: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -177,7 +177,7 @@ fun TreasuryScreen(config: MasjidConfig) {
         }
         
         // Anti Burn-in
-        RunningText(text = config.runningText)
+        RunningText(text = runningText)
     }
 }
 

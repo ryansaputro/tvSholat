@@ -9,20 +9,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.time.LocalDate
-import java.time.chrono.HijrahDate
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import com.masjid.tvsholat.utils.HijriCalendar
 import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
 fun ClockHeader(now: Date) {
-    // Sync Hijri with 'now' clock (which already includes the offset)
-    val localDate = now.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
-    val hijri = HijrahDate.from(localDate)
-    val hijriFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.forLanguageTag("id"))
-    val hijriFormatted = hijri.format(hijriFormatter) + " H"
+    // Use local HijriCalendar utility which is compatible with API 24
+    val hijri = HijriCalendar.toHijri(now)
+    val hijriFormatted = "${hijri.day} ${hijri.getMonthName()} ${hijri.year} H"
 
     Row(
         modifier = Modifier
@@ -32,8 +27,8 @@ fun ClockHeader(now: Date) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = SimpleDateFormat("HH:mm:ss").format(now),
-            fontSize = 56.sp,
+            text = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(now),
+            fontSize = 56.sp, // Restored original size
             fontWeight = FontWeight.Bold,
             color = Color.White,
             softWrap = false,
@@ -43,14 +38,14 @@ fun ClockHeader(now: Date) {
         Column(horizontalAlignment = Alignment.End) {
             Text(
                 text = SimpleDateFormat("EEEE, dd MMM yyyy", Locale.forLanguageTag("id")).format(now),
-                fontSize = 20.sp,
+                fontSize = 20.sp, // Restored original size
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
                 softWrap = false
             )
             Text(
                 text = hijriFormatted,
-                fontSize = 18.sp,
+                fontSize = 18.sp, // Restored original size
                 color = Color(0xFFFFD54F)
             )
         }
