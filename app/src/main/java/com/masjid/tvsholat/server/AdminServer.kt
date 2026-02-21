@@ -450,8 +450,12 @@ class AdminServer private constructor(
                                     <input type="file" name="apk_file" accept=".apk" style="font-size: 12px;">
                                     <div style="font-size: 10px; color: #1976d2; margin-top: 5px;">
                                         Versi Saat Ini: <b>v${BuildConfig.VERSION_NAME}</b>
-                                        ${if (config.latestApkVersionCode > 0) "<br>File Terupload: " + config.latestApkLocalPath.substringAfterLast("/") else ""}
+                                        ${if (config.latestApkVersionCode > 0) """
+                                            <br>File Terupload: <span style="color:#2e7d32; font-weight:600;">${config.latestApkLocalPath.substringAfterLast("/")}</span>
+                                            <button type="button" onclick="deleteApk()" style="margin-left:8px; padding:2px 6px; background:#e53935; color:white; border:none; border-radius:3px; font-size:9px; cursor:pointer;">Hapus File</button>
+                                        """ else ""}
                                     </div>
+                                    <input type="hidden" name="delete_apk" id="deleteApkFlag" value="false">
                                 </div>
                             </div>
                         </div>
@@ -760,6 +764,12 @@ class AdminServer private constructor(
                     const type = document.querySelector('input[name="tarhim_audio_type"]:checked').value;
                     document.getElementById('tarhimAudioUrlInput').style.display = type === 'url' ? 'block' : 'none';
                     document.getElementById('tarhimAudioUploadInput').style.display = type === 'upload' ? 'block' : 'none';
+                }
+
+                function deleteApk() {
+                    if (!confirm('Hapus file update APK dari server? Slaves juga akan ikut menghapus file lokalnya.')) return;
+                    document.getElementById('deleteApkFlag').value = 'true';
+                    document.getElementById('configForm').submit();
                 }
 
                 function handleLogoFileSelect(event) {
@@ -1201,6 +1211,17 @@ class AdminServer private constructor(
 
             var finalApkLocalPath = config.latestApkLocalPath
             var finalApkVersionCode = config.latestApkVersionCode
+            
+            // Handle Delete APK
+            if (p["delete_apk"]?.firstOrNull() == "true") {
+                val updateDir = File(context.filesDir, "updates")
+                if (updateDir.exists()) {
+                    updateDir.listFiles()?.forEach { it.delete() }
+                }
+                finalApkLocalPath = ""
+                finalApkVersionCode = 0
+            }
+
             if (files.containsKey("apk_file")) {
                 files["apk_file"]?.let { tempPath ->
                     val tempFile = File(tempPath)
@@ -1467,18 +1488,28 @@ class AdminServer private constructor(
 
             // Handle APK Update Sync
             var finalApkLocalPath = newConfig.latestApkLocalPath
-            if (newConfig.latestApkVersionCode > BuildConfig.VERSION_CODE) {
+            
+            // CRITICAL: Prevent redundant installs by checking against OLD version code
+            if (newConfig.latestApkVersionCode > oldConfig.latestApkVersionCode) {
                 if (finalApkLocalPath.isNotEmpty() && !File(finalApkLocalPath).exists()) {
                     val filename = finalApkLocalPath.substringAfterLast("/")
                     downloadFileFromPeer(session.remoteIpAddress, "updates", filename)?.let {
                         finalApkLocalPath = it
-                        
-                        // 🔥 TRIGGER UPDATE INSTALLATION
+                        // 🔥 TRIGGER UPDATE INSTALLATION (Only for NEW versions)
                         installApk(it)
                     }
                 } else if (finalApkLocalPath.isNotEmpty() && File(finalApkLocalPath).exists()) {
-                    // File already exists, trigger install if not already on this version
+                    // File exists, but version is newer than what we had
                     installApk(finalApkLocalPath)
+                }
+            } else if (newConfig.latestApkLocalPath.isEmpty() && oldConfig.latestApkLocalPath.isNotEmpty()) {
+                // Master deleted APK, cleanup local too
+                try {
+                    val file = File(oldConfig.latestApkLocalPath)
+                    if (file.exists()) file.delete()
+                    finalApkLocalPath = ""
+                } catch (e: Exception) {
+                    android.util.Log.e("ADMIN_SERVER", "Sync cleanup failed", e)
                 }
             }
 
