@@ -11,7 +11,9 @@ import java.nio.charset.StandardCharsets
 
 data class PeerInfo(
     val ip: String,
-    val deviceId: String
+    val deviceId: String,
+    val isMaster: Boolean = false,
+    val name: String = "Sistem TV"
 )
 
 class NetworkDiscovery(context: Context) {
@@ -62,20 +64,26 @@ class NetworkDiscovery(context: Context) {
                     val message = String(responsePacket.data, 0, responsePacket.length, StandardCharsets.UTF_8)
                     val senderIp = responsePacket.address.hostAddress ?: ""
 
-                    // Message format: TVSHOLAT_HERE:<deviceId>
-                    if (message.startsWith(DISCOVERY_RESPONSE_PREFIX)) {
-                         val senderDeviceId = message.substringAfter(DISCOVERY_RESPONSE_PREFIX)
-                         
-                         // Don't include self (check by IP or Device ID)
-                         if (senderIp != getMyIpAddress() && senderDeviceId != myDeviceId) {
-                            if (peers.none { it.ip == senderIp }) {
-                                val peer = PeerInfo(senderIp, senderDeviceId)
-                                peers.add(peer)
-                                knownPeers[senderDeviceId] = peer // Update cache
-                                android.util.Log.d("NetworkDiscovery", "Found peer: $senderIp ($senderDeviceId)")
-                            }
-                        }
-                    }
+                     // Message format: TVSHOLAT_HERE:<deviceId>[:MASTER] or <deviceId>|<MASTER|SLAVE>|<name>
+                     if (message.startsWith(DISCOVERY_RESPONSE_PREFIX)) {
+                          val payload = message.substringAfter(DISCOVERY_RESPONSE_PREFIX)
+                          val parts = payload.split("|")
+                          val oldParts = payload.split(":")
+                          
+                          val senderDeviceId = if (parts.size > 1) parts[0] else oldParts[0]
+                          val senderIsMaster = if (parts.size > 1) parts[1] == "MASTER" else if (oldParts.size > 1) oldParts[1] == "MASTER" else false
+                          val senderName = if (parts.size > 2) parts[2] else "Sistem TV"
+                          
+                          // Don't include self (check by IP or Device ID)
+                          if (senderIp != getMyIpAddress() && senderDeviceId != myDeviceId) {
+                             if (peers.none { it.ip == senderIp }) {
+                                 val peer = PeerInfo(senderIp, senderDeviceId, senderIsMaster, senderName)
+                                 peers.add(peer)
+                                 knownPeers[senderDeviceId] = peer // Update cache
+                                 android.util.Log.d("NetworkDiscovery", "Found peer: $senderIp ($senderDeviceId) Master: $senderIsMaster, Name: $senderName")
+                             }
+                         }
+                     }
                 } catch (e: java.net.SocketTimeoutException) {
                     // Timeout is expected
                     break
@@ -94,9 +102,11 @@ class NetworkDiscovery(context: Context) {
 
     /**
      * Memulai listener UDP di background thread.
-     * Ini harus dipanggil saat aplikasi/server start.
+     * @param getDeviceId lambda untuk mendapatkan deviceId saat ini
+     * @param getIsMaster lambda untuk mendapatkan status master saat ini
+     * @param getName lambda untuk mendapatkan nama TV saat ini
      */
-    suspend fun listenForDiscovery(getDeviceId: () -> String) = withContext(Dispatchers.IO) {
+    suspend fun listenForDiscovery(getDeviceId: () -> String, getIsMaster: () -> Boolean, getName: () -> String) = withContext(Dispatchers.IO) {
         var socket: DatagramSocket? = null
         try {
             // Bind to specific port
@@ -122,11 +132,13 @@ class NetworkDiscovery(context: Context) {
                 if (message.startsWith(DISCOVERY_MSG_PREFIX)) {
                     val senderDeviceId = message.substringAfter(DISCOVERY_MSG_PREFIX)
                     val myDeviceId = getDeviceId()
+                    val isMaster = getIsMaster()
+                    val myName = getName()
                     
                     // Jangan respon ke diri sendiri
                     if (senderIp != getMyIpAddress() && senderDeviceId != myDeviceId) {
-                         // Send Response back to sender with My Device ID
-                        val responseMsg = "$DISCOVERY_RESPONSE_PREFIX$myDeviceId"
+                         // Send Response back to sender with My Device ID, Master status, and Name
+                        val responseMsg = "$DISCOVERY_RESPONSE_PREFIX$myDeviceId|${if (isMaster) "MASTER" else "SLAVE"}|$myName"
                         val responseData = responseMsg.toByteArray(StandardCharsets.UTF_8)
                         val responsePacket = DatagramPacket(
                             responseData, 
@@ -137,10 +149,12 @@ class NetworkDiscovery(context: Context) {
                         socket.send(responsePacket)
                         
                         // Also add sender to our known peers!
-                        val peer = PeerInfo(senderIp, senderDeviceId)
+                        // Format sender isMaster is unknown from discovery request usually, 
+                        // but we can assume false or just leave it for findPeers to update.
+                        val peer = PeerInfo(senderIp, senderDeviceId, false, "Sistem TV") 
                         knownPeers[senderDeviceId] = peer
                         
-                        android.util.Log.d("NetworkDiscovery", "Responded to discovery from $senderIp ($senderDeviceId)")
+                        android.util.Log.d("NetworkDiscovery", "Responded to discovery from $senderIp ($senderDeviceId) as ${if (isMaster) "MASTER" else "SLAVE"} $myName")
                     }
                 }
             }
@@ -151,7 +165,7 @@ class NetworkDiscovery(context: Context) {
         }
     }
 
-    private fun getMyIpAddress(): String? {
+    fun getMyIpAddress(): String? {
         val linkProperties = connectivityManager.getLinkProperties(connectivityManager.activeNetwork)
         linkProperties?.linkAddresses?.forEach { linkAddress ->
             val address = linkAddress.address

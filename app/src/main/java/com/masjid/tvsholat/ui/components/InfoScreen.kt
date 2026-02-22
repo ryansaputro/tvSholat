@@ -33,33 +33,22 @@ import java.util.Locale
 fun InfoScreen(config: MasjidConfig, now: Date, runningText: String) {
     // Filter out empty items to prevent rendering issues
     val items = config.infoItems.filter { it.content.isNotEmpty() }
-    var currentIndex by remember { mutableIntStateOf(0) }
-
-    // Reset index if items change significantly (e.g. number of items changes)
-    LaunchedEffect(items.size) {
-        currentIndex = 0
-    }
-
     // Calculate duration per item dynamically
     // If total duration is 15s and 3 items -> 5s per item
-    val durationPerItem = if (items.isNotEmpty() && config.infoDisplayDuration > 0) {
-        val calculated = config.infoDisplayDuration.toLong() / items.size
-        calculated.coerceAtLeast(3L) // Minimum 3 seconds to be readable
+    val durationMillisPerItem = if (items.isNotEmpty() && config.infoDisplayDuration > 0) {
+        (config.infoDisplayDuration.toLong() * 1000L) / items.size
     } else {
-        5L // Default fallback
+        5000L // Default fallback
     }
 
-    // Rotation Loop - use stable keys to avoid restarts during ticker recomposition
-    LaunchedEffect(items.size, config.infoDisplayDuration) {
-        if (items.isNotEmpty()) {
-            while (true) {
-                delay(durationPerItem * 1000L)
-                if (items.isNotEmpty()) {
-                    currentIndex = (currentIndex + 1) % items.size
-                }
-            }
-        }
-    }
+    // Track the time when the screen was first shown
+    val startTime = remember { now.time }
+    val elapsedMillis = now.time - startTime
+
+    // Use relative elapsed time to determine index, ensuring it starts from 0 (Info #1)
+    val currentIndex = if (items.isNotEmpty()) {
+        ((elapsedMillis / durationMillisPerItem) % items.size).toInt()
+    } else 0
 
     if (items.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

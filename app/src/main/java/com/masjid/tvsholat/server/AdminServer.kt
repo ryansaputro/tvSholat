@@ -53,9 +53,11 @@ class AdminServer private constructor(
         
         // Start Discovery Listener
         CoroutineScope(Dispatchers.IO).launch {
-            networkDiscovery.listenForDiscovery {
-                repo.load().deviceId
-            }
+            networkDiscovery.listenForDiscovery(
+                getDeviceId = { repo.load().deviceId },
+                getIsMaster = { repo.load().isTimeMaster },
+                getName = { repo.load().name }
+            )
         }
     }
 
@@ -295,6 +297,14 @@ class AdminServer private constructor(
             <body>
             <div class="container">
                 <div class="header">
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 5px;">
+                        <span style="font-size: 10px; padding: 2px 8px; border-radius: 4px; background: ${if (config.isTimeMaster) "#1b5e20" else "#7f8c8d"}; color: white; font-weight: 800; letter-spacing: 0.5px;">
+                            ${if (config.isTimeMaster) "👑 MASTER" else "📱 SLAVE"}
+                        </span>
+                        <span style="font-size: 10px; color: #666; font-family: monospace; background: #eee; padding: 2px 6px; border-radius: 4px;">
+                            IP: ${networkDiscovery.getMyIpAddress() ?: "Unknown"}
+                        </span>
+                    </div>
                     <h1>TV Sholat Admin</h1>
                     <p>${if (config.lastUpdated.isNotEmpty()) "Update terakhir: ${config.lastUpdated}" else "Panel Konfigurasi Masjid"}</p>
                 </div>
@@ -607,7 +617,7 @@ class AdminServer private constructor(
                             <input type="hidden" name="bg_local_path" id="bgLocalPath" value="${config.backgroundLocalPath}">
                             
                             <div class="preview-box" style="margin-top: 10px;">
-                                <img id="preview" src="${if (config.backgroundType == "upload" && config.backgroundLocalPath.isNotEmpty()) getFilesUrl(config.backgroundLocalPath) else config.backgroundUrl}" onerror="this.src='https://via.placeholder.com/400x200?text=Preview'">
+                                <img id="preview" src="${if (config.backgroundType == "upload" && config.backgroundLocalPath.isNotEmpty()) getFilesUrl(config.backgroundLocalPath) else config.backgroundUrl}" onerror="this.src='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'">
                             </div>
                         </div>
                     </div>
@@ -699,7 +709,7 @@ class AdminServer private constructor(
                                         <div id="image_url_group_$index" style="${if (item.type == "text") "display:none;" else ""}">
                                             <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Poster Gambar (Upload / URL)</label>
                                             <div style="display: flex; flex-direction: column; gap: 8px;">
-                                                <input type="file" name="info_file_$index" id="info_file_$index" accept="image/*" onchange="handleInfoFileSelect(event, $index)" style="font-size: 12px;">
+                                                <input type="file" name="info_file_$index" id="info_file_$index" accept="image/*" multiple onchange="handleInfoFileSelect(event, $index)" style="font-size: 12px;">
                                                  <div style="display: flex; gap: 8px;">
                                                     <input id="image_url_$index" value="${if (item.type == "image") (if (item.content.startsWith("/")) getFilesUrl(item.content) else safeContent) else ""}" placeholder="Atau masukkan URL: https://example.com/poster.jpg" style="margin-bottom: 0; flex: 1;">
                                                     <button type="button" onclick="previewInfo($index)" style="margin:0; padding: 0 15px; width: auto; background: #2196f3;">Preview</button>
@@ -747,7 +757,7 @@ class AdminServer private constructor(
                 }
                 
                 function updatePreview(url) {
-                    document.getElementById('preview').src = url || 'https://via.placeholder.com/400x200?text=Preview';
+                    document.getElementById('preview').src = url || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
                 }
 
                 function toggleLogoInput() {
@@ -757,7 +767,7 @@ class AdminServer private constructor(
                 }
 
                 function updateLogoPreview(url) {
-                    document.getElementById('logoPreview').src = url || 'https://via.placeholder.com/80?text=Logo';
+                    document.getElementById('logoPreview').src = url || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
                 }
 
                 function toggleTarhimAudioInput() {
@@ -796,8 +806,10 @@ class AdminServer private constructor(
                 }
 
                 function handleInfoFileSelect(event, index) {
-                    const file = event.target.files[0];
-                    if (file) {
+                    const files = event.target.files;
+                    if (files && files.length > 0) {
+                        // First file updates current item
+                        const firstFile = files[0];
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             document.getElementById('preview_img_' + index).src = e.target.result;
@@ -805,7 +817,38 @@ class AdminServer private constructor(
                             document.getElementById('preview_img_' + index).style.display = 'block';
                             document.getElementById('preview_text_' + index).style.display = 'none';
                         };
-                        reader.readAsDataURL(file);
+                        reader.readAsDataURL(firstFile);
+
+                        // Subsequent files create NEW items
+                        if (files.length > 1) {
+                            for (let i = 1; i < files.length; i++) {
+                                // We can't easily auto-populate a file input for security reasons,
+                                // but we can add the UI items. The user will have to manually upload or 
+                                // we can just handle it on server if we modify the structure, 
+                                // but simpler approach for now: alert that only first is previewed, others added?
+                                // Actually, better: if multiple selected, just add them as separate info items on server.
+                                // But JS needs to ADD the fields so server sees them.
+                                const newIdx = nextIndex;
+                                addInfoItem();
+                                
+                                // Set to image type
+                                const radio = document.querySelector(`input[name="info_type_${'$'}{newIdx}"][value="image"]`);
+                                if (radio) {
+                                    radio.checked = true;
+                                    updateInfoUI(newIdx);
+                                }
+                                
+                                // Note: We can't clone the file input's selected file to another input.
+                                // So multi-upload here is actually best handled by:
+                                // 1. JS adds N-1 more items.
+                                // 2. JS warns user that they need to pick them one by one OR
+                                // 3. We use a different upload mechanism.
+                                // For now, let's just fix the path corruption and rotation, 
+                                // and make the file input support multiple just for the first slot catch-all?
+                                // No, let's keep it simple: fix the bugs first.
+                            }
+                            alert('Info: Gambar tambahan telah ditambahkan slot-nya. Silakan pilih filenya di masing-masing slot.');
+                        }
                     }
                 }
                 
@@ -869,7 +912,7 @@ class AdminServer private constructor(
                             <div id="image_url_group_${'$'}{index}" style="display:none;">
                                 <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">Poster Gambar (Upload / URL)</label>
                                 <div style="display: flex; flex-direction: column; gap: 8px;">
-                                    <input type="file" name="info_file_${'$'}{index}" id="info_file_${'$'}{index}" accept="image/*" onchange="handleInfoFileSelect(event, ${'$'}{index})" style="font-size: 12px;">
+                                    <input type="file" name="info_file_${'$'}{index}" id="info_file_${'$'}{index}" accept="image/*" multiple onchange="handleInfoFileSelect(event, ${'$'}{index})" style="font-size: 12px;">
                                     <div style="display: flex; gap: 8px;">
                                         <input id="image_url_${'$'}{index}" placeholder="Atau masukkan URL: https://example.com/poster.jpg" style="margin-bottom: 0; flex: 1;">
                                         <button type="button" onclick="previewInfo(${'$'}{index})" style="margin:0; padding: 0 15px; width: auto; background: #2196f3;">Preview</button>
@@ -947,7 +990,9 @@ class AdminServer private constructor(
                 };
 
                 function updateInfoUI(index) {
-                    const type = document.querySelector('input[name="info_type_' + index + '"]:checked').value;
+                    const typeInput = document.querySelector('input[name="info_type_' + index + '"]:checked');
+                    if (!typeInput) return;
+                    const type = typeInput.value;
                     const titleGroup = document.getElementById('title_group_' + index);
                     const editorGroup = document.getElementById('text_editor_group_' + index);
                     const imageGroup = document.getElementById('image_url_group_' + index);
@@ -971,7 +1016,9 @@ class AdminServer private constructor(
                 }
 
                 function previewInfo(index) {
-                    const type = document.querySelector('input[name="info_type_' + index + '"]:checked').value;
+                    const typeInput = document.querySelector('input[name="info_type_' + index + '"]:checked');
+                    if (!typeInput) return;
+                    const type = typeInput.value;
                     const area = document.getElementById('preview_area_' + index);
                     const img = document.getElementById('preview_img_' + index);
                     const txt = document.getElementById('preview_text_' + index);
@@ -990,7 +1037,7 @@ class AdminServer private constructor(
                 }
                 
                 // Set initial UI
-                [0, 1, 2].forEach(index => updateInfoUI(index));
+                Array.from(document.querySelectorAll('input[name="info_index"]')).forEach(el => updateInfoUI(el.value));
 
                 // Fetch Peers
                 fetchPeers();
@@ -1006,18 +1053,24 @@ class AdminServer private constructor(
                             }
                             
                             let html = '<table style="width:100%; border-collapse:collapse;">';
-                            html += '<tr style="background:#f1f1f1; text-align:left;"><th style="padding:8px; border-bottom:1px solid #ddd;">IP Address</th><th style="padding:8px; border-bottom:1px solid #ddd;">Device ID / Status</th><th style="padding:8px; border-bottom:1px solid #ddd; width:80px;">Aksi</th></tr>';
+                            html += '<tr style="background:#f1f1f1; text-align:left;"><th style="padding:8px; border-bottom:1px solid #ddd;">Nama TV / IP</th><th style="padding:8px; border-bottom:1px solid #ddd;">Status</th><th style="padding:8px; border-bottom:1px solid #ddd; width:80px;">Aksi</th></tr>';
                             
                             data.forEach(peer => {
+                                const isMaster = peer.isMaster === true;
+                                const statusLabel = isMaster ? '<span style="font-size: 10px; background: #feefc3; color: #af5d00; padding: 2px 6px; border-radius: 4px; font-weight: 800; border: 1px solid #ffe082;">👑 MASTER</span>' : '<span style="font-size: 10px; background: #e0e0e0; color: #666; padding: 2px 6px; border-radius: 4px; font-weight: 800;">📱 SLAVE</span>';
+                                
                                 html += '<tr>';
-                                html += '<td style="padding:8px; border-bottom:1px solid #eee;">' + peer.ip + '</td>';
-                                html += '<td style="padding:8px; border-bottom:1px solid #eee; font-family:monospace;">' + peer.deviceId + '</td>';
+                                html += '<td style="padding:8px; border-bottom:1px solid #eee;">';
+                                html += '   <div style="font-weight: 600; font-size: 13px;">' + (peer.name || 'Sistem TV') + '</div>';
+                                html += '   <div style="font-size: 11px; color: #666; font-family: monospace;">' + peer.ip + '</div>';
+                                html += '</td>';
+                                html += '<td style="padding:8px; border-bottom:1px solid #eee;">' + statusLabel + '</td>';
                                 html += '<td style="padding:8px; border-bottom:1px solid #eee;">';
                                 html += '<button type="button" onclick="testPeer(\'' + peer.ip + '\')" style="margin-right:5px; padding:4px 8px; background:#2196f3; color:white; border:none; border-radius:4px; font-size:11px; cursor:pointer;">Test</button>';
                                 html += '<button type="button" onclick="removePeer(\'' + peer.ip + '\')" style="margin:0; padding:4px 8px; background:#e53935; color:white; border:none; border-radius:4px; font-size:11px; cursor:pointer;">Hapus</button>';
                                 
                                 if (peer.deviceId !== 'MANUAL') {
-                                     html += '<span style="font-size:10px; color:green; margin-left:5px;">(Auto)</span>';
+                                     html += '<div style="font-size:10px; color:green; margin-top:4px;">(Auto)</div>';
                                 }
                                 html += '</td></tr>';
                             });
@@ -1092,6 +1145,15 @@ class AdminServer private constructor(
         }
         return localPath
     }
+
+    private fun reverseGetFilesUrl(url: String?): String {
+        if (url == null || url.isEmpty()) return ""
+        if (url.startsWith("/files/")) {
+            val relative = url.substring("/files/".length)
+            return File(context.filesDir, relative).absolutePath
+        }
+        return url
+    }
     
     private fun saveConfig(session: NanoHTTPD.IHTTPSession): NanoHTTPD.Response {
         return try {
@@ -1159,7 +1221,7 @@ class AdminServer private constructor(
                     val index = strIndex.toIntOrNull()
                     if (index != null) {
                         val title = p["info_title_$index"]?.firstOrNull() ?: ""
-                        var content = p["info_content_$index"]?.firstOrNull() ?: ""
+                        var content = reverseGetFilesUrl(p["info_content_$index"]?.firstOrNull())
                         val type = p["info_real_type_$index"]?.firstOrNull() ?: "text"
                         if (type == "image" && files.containsKey("info_file_$index")) {
                             files["info_file_$index"]?.let { tempPath ->
@@ -1612,8 +1674,8 @@ class AdminServer private constructor(
                 val obj = JSONObject()
                 obj.put("ip", peer.ip)
                 obj.put("deviceId", peer.deviceId)
-                // Nanti bisa ditambah logic request name ke /ping endpoint peer jika mau lebih lengkap
-                // Tapi untuk sekarang IP + DeviceID dulu
+                obj.put("isMaster", peer.isMaster)
+                obj.put("name", peer.name)
                 jsonArray.put(obj)
             }
             
